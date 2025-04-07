@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { useForm } from 'react-hook-form';
 import { Layout } from '@/components/layout/Layout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -146,6 +147,13 @@ const applicationTracker = {
 };
 
 const Applications = () => {
+  const form = useForm();
+
+  const onSubmit = (data: any) => {
+    console.log(data);
+    // Here you would typically submit the application
+  };
+
   return (
     <Layout>
       <div className="mb-6">
@@ -220,73 +228,99 @@ const Applications = () => {
               <CardTitle>Submit a New Application</CardTitle>
             </CardHeader>
             <CardContent>
-              <Form>
-                <FormField name="type">
-                  <FormItem className="mb-4">
-                    <FormLabel>Application Type</FormLabel>
-                    <Select>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select application type" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="event">Event</SelectItem>
-                        <SelectItem value="budget">Budget</SelectItem>
-                        <SelectItem value="sponsorship">Sponsorship</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormDescription>
-                      Select the type of application you want to submit
-                    </FormDescription>
-                  </FormItem>
-                </FormField>
-                
-                <FormField name="title">
-                  <FormItem className="mb-4">
-                    <FormLabel>Title</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Application title" />
-                    </FormControl>
-                  </FormItem>
-                </FormField>
-                
-                <FormField name="details">
-                  <FormItem className="mb-4">
-                    <FormLabel>Details</FormLabel>
-                    <FormControl>
-                      <Textarea 
-                        placeholder="Detailed description of your application" 
-                        className="min-h-[150px]" 
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      Provide comprehensive details to expedite the approval process
-                    </FormDescription>
-                  </FormItem>
-                </FormField>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                  <FormField name="date">
-                    <FormItem>
-                      <FormLabel>Date (if applicable)</FormLabel>
-                      <FormControl>
-                        <Input type="date" />
-                      </FormControl>
-                    </FormItem>
-                  </FormField>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="type"
+                    render={({ field }) => (
+                      <FormItem className="mb-4">
+                        <FormLabel>Application Type</FormLabel>
+                        <Select 
+                          onValueChange={field.onChange} 
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select application type" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="event">Event</SelectItem>
+                            <SelectItem value="budget">Budget</SelectItem>
+                            <SelectItem value="sponsorship">Sponsorship</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormDescription>
+                          Select the type of application you want to submit
+                        </FormDescription>
+                      </FormItem>
+                    )}
+                  />
                   
-                  <FormField name="amount">
-                    <FormItem>
-                      <FormLabel>Amount (if applicable)</FormLabel>
-                      <FormControl>
-                        <Input type="number" placeholder="0.00" />
-                      </FormControl>
-                    </FormItem>
-                  </FormField>
-                </div>
-                
-                <Button type="submit" className="mt-2">Submit Application</Button>
+                  <FormField
+                    control={form.control}
+                    name="title"
+                    render={({ field }) => (
+                      <FormItem className="mb-4">
+                        <FormLabel>Title</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Application title" {...field} />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="details"
+                    render={({ field }) => (
+                      <FormItem className="mb-4">
+                        <FormLabel>Details</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            placeholder="Detailed description of your application" 
+                            className="min-h-[150px]"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Provide comprehensive details to expedite the approval process
+                        </FormDescription>
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <FormField
+                      control={form.control}
+                      name="date"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Date (if applicable)</FormLabel>
+                          <FormControl>
+                            <Input type="date" {...field} />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="amount"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Amount (if applicable)</FormLabel>
+                          <FormControl>
+                            <Input type="number" placeholder="0.00" {...field} />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  
+                  <Button type="submit" className="mt-2">Submit Application</Button>
+                </form>
               </Form>
             </CardContent>
           </Card>

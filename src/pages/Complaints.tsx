@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { useForm } from 'react-hook-form';
 import { Layout } from '@/components/layout/Layout';
 import { ComplaintCard } from '@/components/complaints/ComplaintCard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -114,6 +115,13 @@ const cheatingRecords = [
 ];
 
 const Complaints = () => {
+  const form = useForm();
+
+  const onSubmit = (data: any) => {
+    console.log(data);
+    // Here you would typically submit the complaint
+  };
+
   return (
     <Layout>
       <div className="mb-6">
@@ -152,58 +160,80 @@ const Complaints = () => {
               <CardTitle>Submit a New Complaint</CardTitle>
             </CardHeader>
             <CardContent>
-              <Form>
-                <FormField name="title">
-                  <FormItem className="mb-4">
-                    <FormLabel>Title</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Brief title of your complaint" />
-                    </FormControl>
-                    <FormDescription>
-                      Keep the title clear and concise
-                    </FormDescription>
-                  </FormItem>
-                </FormField>
-                
-                <FormField name="description">
-                  <FormItem className="mb-4">
-                    <FormLabel>Description</FormLabel>
-                    <FormControl>
-                      <Textarea 
-                        placeholder="Detailed description of the issue" 
-                        className="min-h-[150px]" 
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      Provide as much relevant information as possible
-                    </FormDescription>
-                  </FormItem>
-                </FormField>
-                
-                <FormField name="location">
-                  <FormItem className="mb-4">
-                    <FormLabel>Location</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Where is this issue occurring?" />
-                    </FormControl>
-                  </FormItem>
-                </FormField>
-                
-                <FormField name="anonymous">
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 mb-4">
-                    <FormControl>
-                      <Checkbox />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel>Submit Anonymously</FormLabel>
-                      <FormDescription>
-                        Your identity will not be revealed unless required and approved by board members
-                      </FormDescription>
-                    </div>
-                  </FormItem>
-                </FormField>
-                
-                <Button type="submit" className="mt-2">Submit Complaint</Button>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="title"
+                    render={({ field }) => (
+                      <FormItem className="mb-4">
+                        <FormLabel>Title</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Brief title of your complaint" {...field} />
+                        </FormControl>
+                        <FormDescription>
+                          Keep the title clear and concise
+                        </FormDescription>
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="description"
+                    render={({ field }) => (
+                      <FormItem className="mb-4">
+                        <FormLabel>Description</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            placeholder="Detailed description of the issue" 
+                            className="min-h-[150px]"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Provide as much relevant information as possible
+                        </FormDescription>
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="location"
+                    render={({ field }) => (
+                      <FormItem className="mb-4">
+                        <FormLabel>Location</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Where is this issue occurring?" {...field} />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="anonymous"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-start space-x-3 space-y-0 mb-4">
+                        <FormControl>
+                          <Checkbox 
+                            checked={field.value} 
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                        <div className="space-y-1 leading-none">
+                          <FormLabel>Submit Anonymously</FormLabel>
+                          <FormDescription>
+                            Your identity will not be revealed unless required and approved by board members
+                          </FormDescription>
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <Button type="submit" className="mt-2">Submit Complaint</Button>
+                </form>
               </Form>
             </CardContent>
           </Card>
