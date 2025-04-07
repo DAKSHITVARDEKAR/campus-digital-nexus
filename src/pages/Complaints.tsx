@@ -18,6 +18,8 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+import { AlertCircle, CheckCircle, Clock, Filter, Search } from 'lucide-react';
 
 // Mock data
 const publicComplaints = [
@@ -114,12 +116,39 @@ const cheatingRecords = [
   },
 ];
 
+const complaintStatusData = [
+  { name: 'Resolved', value: 43, color: '#4CAF50' },
+  { name: 'Under Review', value: 28, color: '#2196F3' },
+  { name: 'Pending', value: 29, color: '#FFC107' },
+];
+
+const complaintCategoryData = [
+  { name: 'Facilities', value: 35, color: '#9C27B0' },
+  { name: 'Academic', value: 25, color: '#3F51B5' },
+  { name: 'Administrative', value: 20, color: '#FF5722' },
+  { name: 'Food Services', value: 15, color: '#009688' },
+  { name: 'Others', value: 5, color: '#607D8B' },
+];
+
+const anonymityData = [
+  { name: 'Anonymous', value: 40, color: '#FF9800' },
+  { name: 'Named', value: 60, color: '#03A9F4' },
+];
+
 const Complaints = () => {
-  const form = useForm();
+  const form = useForm({
+    defaultValues: {
+      title: '',
+      description: '',
+      location: '',
+      anonymous: false,
+    },
+  });
 
   const onSubmit = (data: any) => {
     console.log(data);
     // Here you would typically submit the complaint
+    form.reset();
   };
 
   return (
@@ -135,10 +164,30 @@ const Complaints = () => {
           <TabsTrigger value="submit">Submit Complaint</TabsTrigger>
           <TabsTrigger value="my">My Complaints</TabsTrigger>
           <TabsTrigger value="integrity">Academic Integrity</TabsTrigger>
+          <TabsTrigger value="analytics">Analytics</TabsTrigger>
         </TabsList>
         
         <TabsContent value="public">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="relative w-64">
+              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input 
+                placeholder="Search complaints..." 
+                className="pl-8"
+              />
+            </div>
+            <div className="flex items-center space-x-2">
+              <Button variant="outline" size="sm" className="flex items-center">
+                <Filter className="h-4 w-4 mr-1" />
+                Filter
+              </Button>
+              <Button variant="outline" size="sm">
+                Latest
+              </Button>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {publicComplaints.map((complaint) => (
               <ComplaintCard 
                 key={complaint.id}
@@ -174,6 +223,7 @@ const Complaints = () => {
                         <FormDescription>
                           Keep the title clear and concise
                         </FormDescription>
+                        <FormMessage />
                       </FormItem>
                     )}
                   />
@@ -194,6 +244,7 @@ const Complaints = () => {
                         <FormDescription>
                           Provide as much relevant information as possible
                         </FormDescription>
+                        <FormMessage />
                       </FormItem>
                     )}
                   />
@@ -207,6 +258,7 @@ const Complaints = () => {
                         <FormControl>
                           <Input placeholder="Where is this issue occurring?" {...field} />
                         </FormControl>
+                        <FormMessage />
                       </FormItem>
                     )}
                   />
@@ -228,6 +280,7 @@ const Complaints = () => {
                             Your identity will not be revealed unless required and approved by board members
                           </FormDescription>
                         </div>
+                        <FormMessage />
                       </FormItem>
                     )}
                   />
@@ -240,7 +293,14 @@ const Complaints = () => {
         </TabsContent>
         
         <TabsContent value="my">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
+          <div className="mb-4 flex justify-between items-center">
+            <h2 className="text-xl font-semibold">My Submitted Complaints</h2>
+            <Button variant="outline" size="sm">
+              View Resolved
+            </Button>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {myComplaints.map((complaint) => (
               <ComplaintCard 
                 key={complaint.id}
@@ -253,6 +313,19 @@ const Complaints = () => {
                 submitter={complaint.submitter}
               />
             ))}
+          </div>
+          
+          <div className="mt-6 p-4 border border-gray-200 rounded-lg flex flex-col sm:flex-row items-center justify-between">
+            <div className="flex items-center mb-4 sm:mb-0">
+              <div className="bg-blue-100 p-2 rounded-full mr-4">
+                <AlertCircle className="h-6 w-6 text-blue-600" />
+              </div>
+              <div>
+                <h3 className="font-medium">Need to update a complaint?</h3>
+                <p className="text-sm text-gray-600">You can provide additional information to your pending complaints.</p>
+              </div>
+            </div>
+            <Button>Update Complaint</Button>
           </div>
         </TabsContent>
         
@@ -283,6 +356,178 @@ const Complaints = () => {
                   </div>
                 ))}
               </div>
+              
+              <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center">
+                  <div className="rounded-full bg-red-100 p-2 mr-3">
+                    <AlertCircle className="h-5 w-5 text-red-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-red-800">Critical Violations</h3>
+                    <p className="text-sm text-red-700">12 cases in 2023</p>
+                  </div>
+                </div>
+                
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-center">
+                  <div className="rounded-full bg-amber-100 p-2 mr-3">
+                    <Clock className="h-5 w-5 text-amber-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-amber-800">Academic Review</h3>
+                    <p className="text-sm text-amber-700">5 cases in progress</p>
+                  </div>
+                </div>
+                
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center">
+                  <div className="rounded-full bg-green-100 p-2 mr-3">
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-green-800">Resolved Cases</h3>
+                    <p className="text-sm text-green-700">28 cases completed</p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="analytics">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Complaints by Status</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div style={{ width: '100%', height: 250 }}>
+                  <ResponsiveContainer>
+                    <PieChart>
+                      <Pie
+                        data={complaintStatusData}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        outerRadius={80}
+                        fill="#8884d8"
+                        dataKey="value"
+                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                      >
+                        {complaintStatusData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(value) => [`${value}%`, 'Percentage']} />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader>
+                <CardTitle>Complaints by Category</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div style={{ width: '100%', height: 250 }}>
+                  <ResponsiveContainer>
+                    <PieChart>
+                      <Pie
+                        data={complaintCategoryData}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        outerRadius={80}
+                        fill="#8884d8"
+                        dataKey="value"
+                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                      >
+                        {complaintCategoryData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(value) => [`${value}%`, 'Percentage']} />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader>
+                <CardTitle>Complaint Anonymity</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div style={{ width: '100%', height: 250 }}>
+                  <ResponsiveContainer>
+                    <PieChart>
+                      <Pie
+                        data={anonymityData}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        outerRadius={80}
+                        fill="#8884d8"
+                        dataKey="value"
+                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                      >
+                        {anonymityData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(value) => [`${value}%`, 'Percentage']} />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+          
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle>Complaint Response Time</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex flex-col">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-500">Facilities Related</span>
+                    <span className="text-sm font-medium">3.2 days</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2.5 mt-1">
+                    <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: '60%' }}></div>
+                  </div>
+                </div>
+                <div className="flex flex-col">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-500">Academic Related</span>
+                    <span className="text-sm font-medium">2.5 days</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2.5 mt-1">
+                    <div className="bg-green-500 h-2.5 rounded-full" style={{ width: '80%' }}></div>
+                  </div>
+                </div>
+                <div className="flex flex-col">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-500">Administrative</span>
+                    <span className="text-sm font-medium">4.8 days</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2.5 mt-1">
+                    <div className="bg-amber-500 h-2.5 rounded-full" style={{ width: '40%' }}></div>
+                  </div>
+                </div>
+                <div className="flex flex-col">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-500">Food Services</span>
+                    <span className="text-sm font-medium">1.8 days</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2.5 mt-1">
+                    <div className="bg-purple-500 h-2.5 rounded-full" style={{ width: '90%' }}></div>
+                  </div>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -296,6 +541,7 @@ const Complaints = () => {
           <li>Vulgar or inappropriate content will be blocked</li>
           <li>Updates on complaint status will be provided regularly</li>
           <li>Academic integrity violations are published without student names</li>
+          <li>The system ensures fair and transparent handling of all complaints</li>
         </ul>
       </div>
     </Layout>
