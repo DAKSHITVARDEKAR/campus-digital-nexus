@@ -1,10 +1,10 @@
 
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Users, MapPin, Clock } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Calendar } from 'lucide-react';
 
 interface FacilityCardProps {
   id: string;
@@ -27,26 +27,32 @@ export const FacilityCard = ({
   status,
   nextAvailable,
 }: FacilityCardProps) => {
+  const navigate = useNavigate();
+  
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'available':
         return 'bg-green-100 text-green-800 border-green-100';
       case 'booked':
-        return 'bg-red-100 text-red-800 border-red-100';
-      case 'maintenance':
         return 'bg-amber-100 text-amber-800 border-amber-100';
+      case 'maintenance':
+        return 'bg-red-100 text-red-800 border-red-100';
       default:
         return 'bg-gray-100 text-gray-800 border-gray-100';
     }
   };
 
+  const handleBookClick = () => {
+    navigate(`/facilities/book/${id}`);
+  };
+
   return (
-    <Card className="overflow-hidden h-full">
-      <div className="h-48 overflow-hidden">
+    <Card className="overflow-hidden h-full flex flex-col">
+      <div className="aspect-video overflow-hidden">
         <img 
           src={image} 
-          alt={name} 
-          className="w-full h-full object-cover transition-transform duration-300 hover:scale-105" 
+          alt={name}
+          className="w-full h-full object-cover transition-transform hover:scale-105"
         />
       </div>
       
@@ -57,34 +63,38 @@ export const FacilityCard = ({
             {status.charAt(0).toUpperCase() + status.slice(1)}
           </Badge>
         </div>
-        <p className="text-sm text-muted-foreground">{location}</p>
       </CardHeader>
       
-      <CardContent className="py-2">
-        <p className="text-sm text-gray-600 line-clamp-2 mb-3">{description}</p>
+      <CardContent className="py-2 flex-grow">
+        <p className="text-sm text-gray-600 line-clamp-2 mb-4">{description}</p>
         
-        <div className="flex items-center text-sm">
-          <span>Capacity: {capacity} people</span>
-        </div>
-        
-        {status !== 'available' && nextAvailable && (
-          <div className="flex items-center mt-2 text-sm">
-            <Calendar className="h-4 w-4 mr-1 text-gray-500" />
-            <span>Next Available: {nextAvailable}</span>
+        <div className="space-y-2 text-sm">
+          <div className="flex items-center">
+            <MapPin className="h-4 w-4 mr-1 text-gray-500" />
+            <span>{location}</span>
           </div>
-        )}
+          
+          <div className="flex items-center">
+            <Users className="h-4 w-4 mr-1 text-gray-500" />
+            <span>Capacity: {capacity}</span>
+          </div>
+          
+          {status === 'booked' && nextAvailable && (
+            <div className="flex items-center">
+              <Clock className="h-4 w-4 mr-1 text-gray-500" />
+              <span>Next Available: {nextAvailable}</span>
+            </div>
+          )}
+        </div>
       </CardContent>
       
       <CardFooter className="pt-2">
         <Button 
-          asChild 
-          className="w-full" 
-          variant={status === 'available' ? 'default' : 'outline'}
-          disabled={status !== 'available'}
+          onClick={handleBookClick}
+          disabled={status !== 'available'} 
+          className="w-full"
         >
-          <Link to={`/facilities/${id}`}>
-            {status === 'available' ? 'Book Now' : 'View Details'}
-          </Link>
+          {status === 'available' ? 'Book Now' : 'View Details'}
         </Button>
       </CardFooter>
     </Card>

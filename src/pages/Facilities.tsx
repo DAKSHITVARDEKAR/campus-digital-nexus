@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { FacilityCard } from '@/components/facilities/FacilityCard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -12,6 +13,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Calendar, ClipboardList, Filter, Search } from 'lucide-react';
 
 // Mock data
 const allFacilities = [
@@ -105,16 +108,57 @@ const myBookings = [
 const Facilities = () => {
   return (
     <Layout>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight">Campus Facilities</h1>
-        <p className="text-muted-foreground">Browse and book campus facilities for your events and activities.</p>
+      <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Campus Facilities</h1>
+          <p className="text-muted-foreground">Browse and book campus facilities for your events and activities.</p>
+        </div>
+        
+        <div className="mt-4 md:mt-0 flex flex-wrap gap-2">
+          <Button asChild variant="outline" className="flex items-center gap-1">
+            <Link to="/facilities/my-bookings">
+              <ClipboardList className="h-4 w-4" />
+              <span>My Bookings</span>
+            </Link>
+          </Button>
+          
+          <Button variant="outline" className="flex items-center gap-1">
+            <Calendar className="h-4 w-4" />
+            <span>Calendar View</span>
+          </Button>
+        </div>
+      </div>
+      
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-6">
+        <div className="relative w-full md:w-64 mb-4 md:mb-0">
+          <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search facilities..."
+            className="w-full pl-8 py-2 pr-4 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+          />
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" className="flex items-center gap-1">
+            <Filter className="h-4 w-4" />
+            <span>Filter</span>
+          </Button>
+          
+          <select className="py-2 px-3 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+            <option value="all">All Locations</option>
+            <option value="main">Main Campus</option>
+            <option value="sports">Sports Complex</option>
+            <option value="tech">Tech Building</option>
+          </select>
+        </div>
       </div>
       
       <Tabs defaultValue="all" className="mb-6">
         <TabsList>
           <TabsTrigger value="all">All Facilities</TabsTrigger>
           <TabsTrigger value="available">Available Now</TabsTrigger>
-          <TabsTrigger value="mybookings">My Bookings</TabsTrigger>
+          <TabsTrigger value="mybookings">Quick Booking Status</TabsTrigger>
         </TabsList>
         
         <TabsContent value="all">
@@ -158,6 +202,13 @@ const Facilities = () => {
         
         <TabsContent value="mybookings">
           <div className="mt-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-semibold">My Recent Bookings</h2>
+              <Button variant="outline" asChild>
+                <Link to="/facilities/my-bookings">View All Bookings</Link>
+              </Button>
+            </div>
+            
             <Table>
               <TableHeader>
                 <TableRow>

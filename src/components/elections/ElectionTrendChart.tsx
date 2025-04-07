@@ -128,7 +128,7 @@ export const ElectionTrendChart = ({
                 y={targetValue} 
                 stroke="#ff7300" 
                 strokeDasharray="3 3"
-                ifFront={false}
+                isFront={false}
               >
                 <Label 
                   value="Target" 
