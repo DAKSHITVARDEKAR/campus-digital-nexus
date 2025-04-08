@@ -20,7 +20,10 @@ import { AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const loginSchema = z.object({
-  email: z.string().email({ message: 'Please enter a valid email address' }),
+  email: z.string().email({ message: 'Please enter a valid college email address' })
+    .refine(email => email.endsWith('.edu'), { 
+      message: 'Must use a valid college email (.edu domain)' 
+    }),
   password: z.string().min(6, { message: 'Password must be at least 6 characters' }),
 });
 
@@ -72,7 +75,7 @@ const LoginPage = () => {
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
           <div className="flex justify-center mb-4">
-            <img src="/placeholder.svg" alt="Logo" className="h-12" />
+            <img src="/placeholder.svg" alt="College Logo" className="h-12" />
           </div>
           <CardTitle className="text-2xl font-bold text-center">Campus Digital Nexus</CardTitle>
           <CardDescription className="text-center">
@@ -101,6 +104,7 @@ const LoginPage = () => {
                         {...field} 
                         type="email"
                         disabled={isLoading}
+                        className="bg-white"
                       />
                     </FormControl>
                     <FormMessage />
@@ -120,6 +124,7 @@ const LoginPage = () => {
                         {...field} 
                         type="password"
                         disabled={isLoading}
+                        className="bg-white"
                       />
                     </FormControl>
                     <FormMessage />
