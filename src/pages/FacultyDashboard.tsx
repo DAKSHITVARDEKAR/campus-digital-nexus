@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Calendar, FileText, Users, Bell, AlertCircle } from 'lucide-react';
+import { Calendar, FileText, Users, Bell, AlertCircle, Shield, Activity, BookOpen, BarChart } from 'lucide-react';
 import DashboardWidget from '@/components/dashboard/DashboardWidget';
 import NotificationItem from '@/components/dashboard/NotificationItem';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -247,24 +247,37 @@ const FacultyDashboard = () => {
             isLoading={isLoading}
           >
             <div className="flex flex-col space-y-2">
+              <Link to="/faculty/board-review" className="w-full">
+                <Button variant="outline" className="w-full justify-start text-left">
+                  <Shield className="h-4 w-4 mr-2" />
+                  Board Member Review
+                  <Badge className="ml-auto bg-blue-100 text-blue-800 hover:bg-blue-200 border-blue-200">
+                    New
+                  </Badge>
+                </Button>
+              </Link>
               <Link to="/faculty/report-cheating" className="w-full">
                 <Button variant="outline" className="w-full justify-start text-left">
+                  <Activity className="h-4 w-4 mr-2" />
                   Report Cheating Incident
                 </Button>
               </Link>
               <Link to="/faculty/submit-expense" className="w-full">
                 <Button variant="outline" className="w-full justify-start text-left">
+                  <BarChart className="h-4 w-4 mr-2" />
                   Submit Department Expense
                 </Button>
               </Link>
               <Link to="/faculty/budget-view" className="w-full">
                 <Button variant="outline" className="w-full justify-start text-left">
+                  <BarChart className="h-4 w-4 mr-2" />
                   Department Budget
                 </Button>
               </Link>
-              <Link to="/faculty/board-review" className="w-full">
+              <Link to="/faculty/courses" className="w-full">
                 <Button variant="outline" className="w-full justify-start text-left">
-                  Board Member Review
+                  <BookOpen className="h-4 w-4 mr-2" />
+                  Manage Courses
                 </Button>
               </Link>
             </div>

@@ -18,6 +18,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
 
 const loginSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid college email address' })
@@ -32,6 +34,7 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 const LoginPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedRole, setSelectedRole] = useState('student');
   const navigate = useNavigate();
   const { toast } = useToast();
   
@@ -54,13 +57,26 @@ const LoginPage = () => {
       // Simulate auth delay
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // Mock successful login
+      // Mock successful login and redirect based on role
       toast({
         title: "Login successful",
-        description: "Welcome back to Campus Digital Nexus!",
+        description: `Welcome back to Campus Digital Nexus as ${selectedRole}!`,
       });
       
-      navigate('/');
+      // Redirect to the appropriate dashboard based on selected role
+      switch(selectedRole) {
+        case 'student':
+          navigate('/student-dashboard');
+          break;
+        case 'faculty':
+          navigate('/faculty-dashboard');
+          break;
+        case 'admin':
+          navigate('/admin-dashboard');
+          break;
+        default:
+          navigate('/');
+      }
     } catch (err) {
       // Handle error based on Firebase error codes
       setError('Invalid email or password. Please try again.');
@@ -89,6 +105,19 @@ const LoginPage = () => {
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
+          
+          <Tabs defaultValue="student" onValueChange={setSelectedRole} className="mb-6">
+            <TabsList className="grid grid-cols-3 w-full">
+              <TabsTrigger value="student">Student</TabsTrigger>
+              <TabsTrigger value="faculty">Faculty</TabsTrigger>
+              <TabsTrigger value="admin">Admin</TabsTrigger>
+            </TabsList>
+            <div className="mt-2 text-center">
+              <Badge variant="outline" className="text-xs">
+                Logging in as: {selectedRole.charAt(0).toUpperCase() + selectedRole.slice(1)}
+              </Badge>
+            </div>
+          </Tabs>
           
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">

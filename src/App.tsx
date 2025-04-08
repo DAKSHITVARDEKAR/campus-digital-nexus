@@ -18,6 +18,7 @@ import Complaints from "./pages/Complaints";
 import Applications from "./pages/Applications";
 import NotFound from "./pages/NotFound";
 import SettingsPage from "./pages/SettingsPage";
+import BoardReviewPage from "./pages/BoardReviewPage";
 
 // Dashboards
 import StudentDashboard from "./pages/StudentDashboard";
@@ -52,6 +53,10 @@ const App = () => (
           <Route path="/complaints" element={<Complaints />} />
           <Route path="/applications" element={<Applications />} />
           <Route path="/settings" element={<SettingsPage />} />
+          
+          {/* Faculty specific routes */}
+          <Route path="/faculty/board-review" element={<BoardReviewPage />} />
+          
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
