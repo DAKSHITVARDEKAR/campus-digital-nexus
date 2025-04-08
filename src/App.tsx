@@ -17,6 +17,12 @@ import MyBookingsPage from "./pages/MyBookingsPage";
 import Complaints from "./pages/Complaints";
 import Applications from "./pages/Applications";
 import NotFound from "./pages/NotFound";
+import SettingsPage from "./pages/SettingsPage";
+
+// Dashboards
+import StudentDashboard from "./pages/StudentDashboard";
+import FacultyDashboard from "./pages/FacultyDashboard";
+import AdminDashboard from "./pages/AdminDashboard";
 
 const queryClient = new QueryClient();
 
@@ -31,6 +37,12 @@ const App = () => (
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/dashboard" element={<Index />} />
+          
+          {/* Role-specific dashboards */}
+          <Route path="/student-dashboard" element={<StudentDashboard />} />
+          <Route path="/faculty-dashboard" element={<FacultyDashboard />} />
+          <Route path="/admin-dashboard" element={<AdminDashboard />} />
+          
           <Route path="/elections" element={<Elections />} />
           <Route path="/elections/:electionId" element={<ElectionDetailsPage />} />
           <Route path="/budget" element={<Budget />} />
@@ -39,6 +51,7 @@ const App = () => (
           <Route path="/facilities/my-bookings" element={<MyBookingsPage />} />
           <Route path="/complaints" element={<Complaints />} />
           <Route path="/applications" element={<Applications />} />
+          <Route path="/settings" element={<SettingsPage />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
