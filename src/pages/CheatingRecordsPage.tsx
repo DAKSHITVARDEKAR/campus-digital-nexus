@@ -1,237 +1,254 @@
 
-import React, { useState } from 'react';
-import { Layout } from '@/components/layout/Layout';
-import { 
-  Table, 
-  TableBody, 
-  TableCaption, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from '@/components/ui/table';
-import { Input } from '@/components/ui/input';
+import React, { useState, useEffect } from 'react';
+import Layout from '@/components/layout/Layout';
+import { Helmet } from 'react-helmet';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { 
-  ExternalLink, 
-  Filter, 
-  Info, 
-  Search,
-  ShieldAlert
-} from 'lucide-react';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
+import { AlertCircle } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Separator } from '@/components/ui/separator';
+import CheatingRecordCard, { CheatingRecordType } from '@/components/cheating/CheatingRecordCard';
+import CheatingRecordDetail from '@/components/cheating/CheatingRecordDetail';
+import CheatingRecordsFilter from '@/components/cheating/CheatingRecordsFilter';
+import { sub } from 'date-fns';
 
-// Mock data - in a real app, this would come from an API
-const mockCheatingRecords = [
+// Mock data for cheating records
+const mockCheatingRecords: CheatingRecordType[] = [
   {
     id: '1',
-    studentName: 'John Doe',
-    studentId: '2023CS001',
-    reason: 'Plagiarism in Assignment',
-    course: 'CS101 Introduction to Programming',
-    date: '2024-10-15',
-    hasProof: true,
-    status: 'Confirmed'
+    studentName: 'John Smith',
+    studentId: 'ST12345',
+    course: 'CS101 - Introduction to Programming',
+    reason: 'Copying code from another student during lab examination',
+    severity: 'moderate',
+    proofAvailable: true,
+    date: sub(new Date(), { days: 5 }),
+    reportedBy: 'Prof. Alan Turing'
   },
   {
     id: '2',
-    studentName: 'Jane Smith',
-    studentId: '2023CS042',
-    reason: 'Unauthorized collaboration on project',
-    course: 'CS301 Database Systems',
-    date: '2024-10-10',
-    hasProof: true,
-    status: 'Under Review'
+    studentName: 'Emily Johnson',
+    studentId: 'ST54321',
+    course: 'MATH202 - Calculus II',
+    reason: 'Using unauthorized cheat sheet during midterm exam',
+    severity: 'severe',
+    proofAvailable: true,
+    date: sub(new Date(), { days: 15 }),
+    reportedBy: 'Prof. Katherine Johnson'
   },
   {
     id: '3',
-    studentName: 'Alex Johnson',
-    studentId: '2023EE105',
-    reason: 'Using unauthorized materials during exam',
-    course: 'MA201 Linear Algebra',
-    date: '2024-09-28',
-    hasProof: true,
-    status: 'Confirmed'
+    studentName: 'Michael Brown',
+    studentId: 'ST67890',
+    course: 'PHYS101 - Physics I',
+    reason: 'Submitting another student\'s lab report as own work',
+    severity: 'moderate',
+    proofAvailable: true,
+    date: sub(new Date(), { days: 30 }),
+    reportedBy: 'Prof. Richard Feynman'
   },
   {
     id: '4',
-    studentName: 'Maria Garcia',
-    studentId: '2023CS078',
-    reason: 'Submitting another student\'s work',
-    course: 'CS210 Data Structures',
-    date: '2024-09-22',
-    hasProof: true,
-    status: 'Confirmed'
+    studentName: 'Jessica Lee',
+    studentId: 'ST24680',
+    course: 'ENG205 - Creative Writing',
+    reason: 'Plagiarism in final essay (20% of content plagiarized)',
+    severity: 'severe',
+    proofAvailable: true,
+    date: sub(new Date(), { days: 45 }),
+    reportedBy: 'Prof. Jane Austen'
   },
   {
     id: '5',
-    studentName: 'David Lee',
-    studentId: '2022CS112',
-    reason: 'Falsifying research data',
-    course: 'CS450 Research Methods',
-    date: '2024-09-15',
-    hasProof: false,
-    status: 'Under Investigation'
+    studentName: 'David Wilson',
+    studentId: 'ST13579',
+    course: 'BIO101 - Introduction to Biology',
+    reason: 'Looking at another student\'s paper during quiz',
+    severity: 'minor',
+    proofAvailable: false,
+    date: sub(new Date(), { days: 60 }),
+    reportedBy: 'Prof. Charles Darwin'
+  },
+  {
+    id: '6',
+    studentName: 'Sarah Garcia',
+    studentId: 'ST97531',
+    course: 'CHEM202 - Organic Chemistry',
+    reason: 'Unauthorized collaboration on take-home exam',
+    severity: 'moderate',
+    proofAvailable: true,
+    date: sub(new Date(), { days: 75 }),
+    reportedBy: 'Prof. Marie Curie'
   }
 ];
 
-const CheatingRecordsPage = () => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [showInfo, setShowInfo] = useState(false);
-  
-  const filteredRecords = mockCheatingRecords.filter(record => 
-    record.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    record.studentId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    record.reason.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    record.course.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+const CheatingRecordsPage: React.FC = () => {
+  const [records, setRecords] = useState<CheatingRecordType[]>([]);
+  const [filteredRecords, setFilteredRecords] = useState<CheatingRecordType[]>([]);
+  const [selectedRecord, setSelectedRecord] = useState<CheatingRecordType | null>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [severityFilter, setSeverityFilter] = useState('all');
+  const [timeFilter, setTimeFilter] = useState('all');
+  const [activeTab, setActiveTab] = useState('all');
+
+  // Simulate fetching data on component mount
+  useEffect(() => {
+    // In a real app, this would be an API call
+    setRecords(mockCheatingRecords);
+  }, []);
+
+  // Apply filters whenever filter states change
+  useEffect(() => {
+    let filtered = [...records];
+    
+    // Apply search filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(record => 
+        record.studentName.toLowerCase().includes(query) ||
+        record.studentId.toLowerCase().includes(query) ||
+        record.course.toLowerCase().includes(query)
+      );
+    }
+    
+    // Apply severity filter
+    if (severityFilter !== 'all') {
+      filtered = filtered.filter(record => record.severity === severityFilter);
+    }
+    
+    // Apply time filter
+    if (timeFilter !== 'all') {
+      const now = new Date();
+      switch (timeFilter) {
+        case 'recent':
+          filtered = filtered.filter(record => 
+            record.date >= sub(now, { days: 30 })
+          );
+          break;
+        case 'semester':
+          filtered = filtered.filter(record => 
+            record.date >= sub(now, { months: 4 })
+          );
+          break;
+        case 'year':
+          filtered = filtered.filter(record => 
+            record.date >= sub(now, { months: 9 })
+          );
+          break;
+      }
+    }
+    
+    // Apply tab filter
+    if (activeTab !== 'all') {
+      filtered = filtered.filter(record => record.severity === activeTab);
+    }
+    
+    setFilteredRecords(filtered);
+  }, [records, searchQuery, severityFilter, timeFilter, activeTab]);
+
+  const handleViewDetails = (recordId: string) => {
+    const record = records.find(r => r.id === recordId);
+    if (record) {
+      setSelectedRecord(record);
+      setIsDetailOpen(true);
+    }
+  };
 
   return (
     <Layout>
-      <div className="space-y-6">
-        <div className="flex justify-between items-start">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight mb-2">Academic Integrity Records</h1>
-            <p className="text-muted-foreground">
-              A transparent record of academic integrity violations. All cases have been reviewed and confirmed by the Academic Integrity Committee.
-            </p>
-          </div>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="outline" size="icon" onClick={() => setShowInfo(true)}>
-                  <Info className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>View information about this system</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+      <Helmet>
+        <title>Academic Integrity Records | Campus Digital Nexus</title>
+      </Helmet>
+      
+      <div className="container mx-auto space-y-6 pb-8">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Academic Integrity Records</h1>
+          <p className="text-muted-foreground mt-1">
+            View and track academic integrity violations
+          </p>
         </div>
-
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-amber-800">
-          <div className="flex">
-            <ShieldAlert className="h-5 w-5 mr-2 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="font-medium">About Academic Integrity Records</p>
-              <p className="text-sm mt-1">
-                This system promotes accountability and transparency in our academic community. All listed cases have undergone thorough investigation with due process and right to appeal.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
-          <div className="relative w-full sm:w-auto">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-            <Input
-              placeholder="Search records..."
-              className="pl-8 w-full sm:w-[350px]"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-            <Button variant="outline" size="sm">
-              <Filter className="h-4 w-4 mr-2" />
-              Filter
-            </Button>
-          </div>
-        </div>
-
-        <Table>
-          <TableCaption>Academic integrity violation records for the current academic year.</TableCaption>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Student ID</TableHead>
-              <TableHead>Student Name</TableHead>
-              <TableHead className="hidden md:table-cell">Course</TableHead>
-              <TableHead>Violation</TableHead>
-              <TableHead className="hidden md:table-cell">Date</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="w-[100px]">Proof</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredRecords.length > 0 ? (
-              filteredRecords.map(record => (
-                <TableRow key={record.id}>
-                  <TableCell className="font-medium">{record.studentId}</TableCell>
-                  <TableCell>{record.studentName}</TableCell>
-                  <TableCell className="hidden md:table-cell">{record.course}</TableCell>
-                  <TableCell>{record.reason}</TableCell>
-                  <TableCell className="hidden md:table-cell">{new Date(record.date).toLocaleDateString()}</TableCell>
-                  <TableCell>
-                    <Badge 
-                      variant={record.status === 'Confirmed' ? 'default' : 
-                              record.status === 'Under Review' ? 'secondary' : 'outline'}
-                    >
-                      {record.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {record.hasProof ? (
-                      <Button variant="outline" size="sm" className="h-8 w-8 p-0">
-                        <ExternalLink className="h-4 w-4" />
-                      </Button>
-                    ) : (
-                      <span className="text-sm text-muted-foreground">N/A</span>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={7} className="text-center h-24">
-                  No records found matching your search criteria.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-
-        <Dialog open={showInfo} onOpenChange={setShowInfo}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>About Academic Integrity Records</DialogTitle>
-              <DialogDescription>
-                Transparency and accountability in our academic community
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <p>
-                The Academic Integrity Records system is designed to promote transparency, accountability, and deter violations of our academic honesty policies. All cases displayed have undergone a rigorous review process with the following considerations:
-              </p>
-              <ul className="list-disc pl-6 space-y-2">
-                <li>Each case has been thoroughly investigated by the Academic Integrity Committee</li>
-                <li>Students involved have received due process, including the opportunity to explain their actions</li>
-                <li>All decisions are subject to appeal through established procedures</li>
-                <li>Records are maintained for educational and deterrence purposes</li>
-                <li>Proof documents are available to authorized personnel only</li>
-              </ul>
-              <p className="text-sm text-muted-foreground">
-                If you have questions about this system or wish to report an error, please contact the Academic Affairs Office.
-              </p>
-            </div>
-          </DialogContent>
-        </Dialog>
+        
+        <Alert variant="default" className="bg-amber-50 text-amber-800 border-amber-200">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Public Information</AlertTitle>
+          <AlertDescription>
+            This is a public record of academic integrity violations. All students and faculty can view these records.
+            These records help maintain transparency and accountability in our academic community.
+          </AlertDescription>
+        </Alert>
+        
+        <CheatingRecordsFilter 
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          severityFilter={severityFilter}
+          onSeverityChange={setSeverityFilter}
+          timeFilter={timeFilter}
+          onTimeChange={setTimeFilter}
+        />
+        
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid grid-cols-4 w-full">
+            <TabsTrigger value="all">All Records</TabsTrigger>
+            <TabsTrigger value="minor">Minor</TabsTrigger>
+            <TabsTrigger value="moderate">Moderate</TabsTrigger>
+            <TabsTrigger value="severe">Severe</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="all" className="mt-6">
+            {renderRecordsList(filteredRecords, handleViewDetails)}
+          </TabsContent>
+          
+          <TabsContent value="minor" className="mt-6">
+            {renderRecordsList(filteredRecords, handleViewDetails)}
+          </TabsContent>
+          
+          <TabsContent value="moderate" className="mt-6">
+            {renderRecordsList(filteredRecords, handleViewDetails)}
+          </TabsContent>
+          
+          <TabsContent value="severe" className="mt-6">
+            {renderRecordsList(filteredRecords, handleViewDetails)}
+          </TabsContent>
+        </Tabs>
       </div>
+      
+      <CheatingRecordDetail 
+        record={selectedRecord}
+        isOpen={isDetailOpen}
+        onClose={() => setIsDetailOpen(false)}
+      />
     </Layout>
+  );
+};
+
+// Helper function to render the records list
+const renderRecordsList = (
+  records: CheatingRecordType[], 
+  onViewDetails: (id: string) => void
+) => {
+  if (records.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <h3 className="text-lg font-medium text-gray-900">No records found</h3>
+        <p className="mt-1 text-gray-500">Try adjusting your filters to see more results.</p>
+        <Button variant="outline" className="mt-4">
+          Clear Filters
+        </Button>
+      </div>
+    );
+  }
+  
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {records.map(record => (
+        <CheatingRecordCard 
+          key={record.id} 
+          record={record} 
+          onViewDetails={onViewDetails} 
+        />
+      ))}
+    </div>
   );
 };
 
