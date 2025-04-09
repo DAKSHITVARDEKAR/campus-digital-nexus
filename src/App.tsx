@@ -22,6 +22,8 @@ import SettingsPage from "./pages/SettingsPage";
 import BoardReviewPage from "./pages/BoardReviewPage";
 import ProfilePage from "./pages/ProfilePage";
 import AchievementsPage from "./pages/AchievementsPage";
+import CheatingRecordsPage from "./pages/CheatingRecordsPage";
+import NotificationsPage from "./pages/NotificationsPage";
 
 // Dashboards
 import StudentDashboard from "./pages/StudentDashboard";
@@ -59,6 +61,10 @@ const App = () => (
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/achievements" element={<AchievementsPage />} />
+          
+          {/* New routes */}
+          <Route path="/cheating-records" element={<CheatingRecordsPage />} />
+          <Route path="/notifications" element={<NotificationsPage />} />
           
           {/* Faculty specific routes */}
           <Route path="/faculty/board-review" element={<BoardReviewPage />} />
