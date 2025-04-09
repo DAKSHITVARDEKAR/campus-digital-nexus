@@ -109,10 +109,13 @@ const getNotificationIcon = (type) => {
 };
 
 // Format date in a human-readable way
-const formatDate = (dateString) => {
+const formatDate = (dateString: string) => {
   const date = new Date(dateString);
   const now = new Date();
-  const diffInDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
+  
+  // Calculate difference in milliseconds and convert to days
+  const diffInMs = now.getTime() - date.getTime();
+  const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
   
   if (diffInDays === 0) {
     return 'Today, ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
