@@ -20,6 +20,8 @@ import Applications from "./pages/Applications";
 import NotFound from "./pages/NotFound";
 import SettingsPage from "./pages/SettingsPage";
 import BoardReviewPage from "./pages/BoardReviewPage";
+import ProfilePage from "./pages/ProfilePage";
+import AchievementsPage from "./pages/AchievementsPage";
 
 // Dashboards
 import StudentDashboard from "./pages/StudentDashboard";
@@ -55,12 +57,17 @@ const App = () => (
           <Route path="/complaints" element={<Complaints />} />
           <Route path="/applications" element={<Applications />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/achievements" element={<AchievementsPage />} />
           
           {/* Faculty specific routes */}
           <Route path="/faculty/board-review" element={<BoardReviewPage />} />
           
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
+          {/* 404 page */}
+          <Route path="/not-found" element={<NotFound />} />
+          
+          {/* Redirect to home instead of showing 404 page */}
+          <Route path="*" element={<Navigate to="/not-found" replace />} />
         </Routes>
       </BrowserRouter>
     </TooltipProvider>
