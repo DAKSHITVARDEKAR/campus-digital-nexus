@@ -8,57 +8,52 @@ import CandidateApplicationForm, { CandidateApplicationType } from './CandidateA
 import CandidateApplicationCard from './CandidateApplicationCard';
 import CandidateApplicationDetail from './CandidateApplicationDetail';
 import DeleteConfirmDialog from '@/components/cheating/DeleteConfirmDialog';
+import useElectionApi from '@/hooks/useElectionApi';
+import UserRoleSwitcher from './UserRoleSwitcher';
+import { getCurrentUser, UserRole } from '@/services/mockAuth';
+import { Candidate } from '@/models/election';
 
-// Mock data for applications
-const mockApplications = [
-  {
-    id: '1',
-    studentName: 'Alex Chen',
-    studentId: 'ST12345',
-    position: 'President',
-    department: 'Computer Science',
-    year: '3rd Year',
-    manifesto: 'I plan to enhance the academic resources and create more opportunities for technical skill development.',
-    status: 'approved' as const,
-    submittedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-  },
-  {
-    id: '2',
-    studentName: 'Sarah Johnson',
-    studentId: 'ST54321',
-    position: 'Vice President',
-    department: 'Business Administration',
-    year: '2nd Year',
-    manifesto: 'My aim is to bridge the gap between students and administration, ensuring every voice is heard.',
-    status: 'pending' as const,
-    submittedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000)
-  },
-  {
-    id: '3',
-    studentName: 'Michael Brown',
-    studentId: 'ST67890',
-    position: 'Secretary',
-    department: 'Engineering',
-    year: '4th Year',
-    manifesto: 'I will focus on improving infrastructure and creating better study environments.',
-    status: 'pending' as const,
-    submittedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000)
-  },
-  {
-    id: '4',
-    studentName: 'Jessica Lee',
-    studentId: 'ST24680',
-    position: 'Treasurer',
-    department: 'Finance',
-    year: '3rd Year',
-    manifesto: 'I bring strong financial management skills to ensure transparent and efficient use of student funds.',
-    status: 'rejected' as const,
-    submittedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000)
-  }
-];
+// Helper function to convert API candidate to application type
+const mapCandidateToApplication = (candidate: Candidate): CandidateApplicationType => {
+  return {
+    id: candidate.id,
+    studentName: candidate.studentName,
+    studentId: candidate.studentId,
+    position: candidate.position,
+    department: candidate.department,
+    year: candidate.year,
+    manifesto: candidate.manifesto,
+    status: candidate.status,
+    submittedAt: new Date(candidate.submittedAt),
+  };
+};
 
-const CandidateApplicationsManager: React.FC = () => {
+// Helper function to map application to candidate for API
+const mapApplicationToCandidate = (
+  application: Omit<CandidateApplicationType, 'id' | 'status' | 'submittedAt'>,
+  electionId: string
+): Omit<Candidate, 'id' | 'voteCount' | 'status' | 'submittedAt'> => {
+  return {
+    electionId,
+    studentName: application.studentName,
+    studentId: application.studentId,
+    position: application.position,
+    department: application.department,
+    year: application.year,
+    manifesto: application.manifesto,
+  };
+};
+
+interface CandidateApplicationsManagerProps {
+  electionId?: string;
+}
+
+const CandidateApplicationsManager: React.FC<CandidateApplicationsManagerProps> = ({ 
+  electionId = 'election-2025' // Default to the current election
+}) => {
   const { toast } = useToast();
+  const api = useElectionApi();
+  
   const [applications, setApplications] = useState<CandidateApplicationType[]>([]);
   const [activeTab, setActiveTab] = useState('all');
   const [showForm, setShowForm] = useState(false);
@@ -68,20 +63,49 @@ const CandidateApplicationsManager: React.FC = () => {
   const [applicationToEdit, setApplicationToEdit] = useState<CandidateApplicationType | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [applicationToDelete, setApplicationToDelete] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<UserRole>('Student');
+  const [loading, setLoading] = useState(true);
   
-  // For demo purposes - admin controls
-  const [isAdmin, setIsAdmin] = useState(false);
-
   useEffect(() => {
-    // In a real app, this would fetch from API
-    setApplications(mockApplications);
+    const fetchUserRole = async () => {
+      const user = await getCurrentUser();
+      if (user) {
+        setUserRole(user.role);
+      }
+    };
+    
+    fetchUserRole();
   }, []);
-
+  
+  useEffect(() => {
+    const fetchCandidates = async () => {
+      setLoading(true);
+      try {
+        const candidates = await api.getCandidates(electionId);
+        if (candidates) {
+          const mappedApplications = candidates.map(mapCandidateToApplication);
+          setApplications(mappedApplications);
+        }
+      } catch (error) {
+        console.error('Error fetching candidates:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load candidate applications",
+          variant: "destructive"
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchCandidates();
+  }, [electionId, api, toast]);
+  
   const filteredApplications = applications.filter(app => {
     if (activeTab === 'all') return true;
     return app.status === activeTab;
   });
-
+  
   const handleViewApplication = (id: string) => {
     const application = applications.find(app => app.id === id);
     if (application) {
@@ -89,7 +113,7 @@ const CandidateApplicationsManager: React.FC = () => {
       setIsDetailOpen(true);
     }
   };
-
+  
   const handleEditApplication = (id: string) => {
     const application = applications.find(app => app.id === id);
     if (application) {
@@ -98,67 +122,97 @@ const CandidateApplicationsManager: React.FC = () => {
       setShowForm(true);
     }
   };
-
+  
   const handleDeleteApplication = (id: string) => {
     setApplicationToDelete(id);
     setIsDeleteDialogOpen(true);
   };
-
-  const confirmDeleteApplication = () => {
+  
+  const confirmDeleteApplication = async () => {
     if (!applicationToDelete) return;
     
-    setApplications(prev => prev.filter(app => app.id !== applicationToDelete));
-    toast({
-      title: "Application Deleted",
-      description: "Your candidate application has been deleted successfully."
-    });
+    try {
+      const result = await api.deleteCandidate(applicationToDelete);
+      if (result !== null) {
+        setApplications(prev => prev.filter(app => app.id !== applicationToDelete));
+        toast({
+          title: "Application Deleted",
+          description: "Your candidate application has been deleted successfully."
+        });
+      }
+    } catch (error) {
+      console.error('Error deleting application:', error);
+    }
     
     setApplicationToDelete(null);
     setIsDeleteDialogOpen(false);
   };
-
-  const handleApproveApplication = (id: string) => {
-    setApplications(prev => prev.map(app => 
-      app.id === id ? { ...app, status: 'approved' as const } : app
-    ));
-    toast({
-      title: "Application Approved",
-      description: "The candidate application has been approved."
-    });
+  
+  const handleApproveApplication = async (id: string) => {
+    try {
+      const updatedCandidate = await api.approveCandidate(id);
+      if (updatedCandidate) {
+        setApplications(prev => prev.map(app => 
+          app.id === id ? { ...app, status: 'approved' as const } : app
+        ));
+      }
+    } catch (error) {
+      console.error('Error approving application:', error);
+    }
   };
-
-  const handleRejectApplication = (id: string) => {
-    setApplications(prev => prev.map(app => 
-      app.id === id ? { ...app, status: 'rejected' as const } : app
-    ));
-    toast({
-      title: "Application Rejected",
-      description: "The candidate application has been rejected."
-    });
+  
+  const handleRejectApplication = async (id: string) => {
+    try {
+      const updatedCandidate = await api.rejectCandidate(id);
+      if (updatedCandidate) {
+        setApplications(prev => prev.map(app => 
+          app.id === id ? { ...app, status: 'rejected' as const } : app
+        ));
+      }
+    } catch (error) {
+      console.error('Error rejecting application:', error);
+    }
   };
-
-  const handleSubmitApplication = (data: Omit<CandidateApplicationType, 'id' | 'status' | 'submittedAt'>) => {
+  
+  const handleSubmitApplication = async (data: Omit<CandidateApplicationType, 'id' | 'status' | 'submittedAt'>) => {
     if (isEditMode && applicationToEdit) {
       // Update existing application
-      setApplications(prev => prev.map(app => 
-        app.id === applicationToEdit.id ? { 
-          ...app, 
-          ...data
-        } : app
-      ));
+      try {
+        const updatedCandidate = await api.updateCandidate(applicationToEdit.id, data);
+        if (updatedCandidate) {
+          const updatedApplication = mapCandidateToApplication(updatedCandidate);
+          setApplications(prev => prev.map(app => 
+            app.id === updatedApplication.id ? updatedApplication : app
+          ));
+        }
+      } catch (error) {
+        console.error('Error updating application:', error);
+        return;
+      }
+      
       setIsEditMode(false);
       setApplicationToEdit(null);
     } else {
       // Add new application
-      const newApplication: CandidateApplicationType = {
-        id: `app-${Date.now()}`,
-        ...data,
-        status: 'pending',
-        submittedAt: new Date()
-      };
-      setApplications(prev => [...prev, newApplication]);
+      try {
+        const candidateData = mapApplicationToCandidate(data, electionId);
+        const newCandidate = await api.createCandidate(candidateData);
+        
+        if (newCandidate) {
+          const newApplication = mapCandidateToApplication(newCandidate);
+          setApplications(prev => [...prev, newApplication]);
+        }
+      } catch (error) {
+        console.error('Error submitting application:', error);
+        return;
+      }
     }
+    
     setShowForm(false);
+  };
+  
+  const handleRoleChange = (role: UserRole) => {
+    setUserRole(role);
   };
 
   return (
@@ -166,14 +220,8 @@ const CandidateApplicationsManager: React.FC = () => {
       <div className="flex justify-between items-center">
         <h2 className="text-xl font-semibold">Candidate Applications</h2>
         <div className="flex items-center gap-4">
-          {/* Toggle for demo purposes - in a real app, would be based on user role */}
-          <Button 
-            variant="outline" 
-            onClick={() => setIsAdmin(!isAdmin)}
-            className={isAdmin ? "bg-blue-50 text-blue-600" : ""}
-          >
-            {isAdmin ? "Admin Mode" : "Student Mode"}
-          </Button>
+          {/* User role switcher for testing different permissions */}
+          <UserRoleSwitcher onRoleChange={handleRoleChange} />
           
           <Button 
             onClick={() => {
@@ -220,19 +268,19 @@ const CandidateApplicationsManager: React.FC = () => {
           </TabsList>
 
           <TabsContent value="all" className="mt-6">
-            {renderApplicationList(filteredApplications, handleViewApplication, handleEditApplication, handleDeleteApplication, handleApproveApplication, handleRejectApplication, isAdmin)}
+            {renderApplicationList(filteredApplications, handleViewApplication, handleEditApplication, handleDeleteApplication, handleApproveApplication, handleRejectApplication, userRole === 'Admin' || userRole === 'Faculty', loading)}
           </TabsContent>
           
           <TabsContent value="pending" className="mt-6">
-            {renderApplicationList(filteredApplications, handleViewApplication, handleEditApplication, handleDeleteApplication, handleApproveApplication, handleRejectApplication, isAdmin)}
+            {renderApplicationList(filteredApplications, handleViewApplication, handleEditApplication, handleDeleteApplication, handleApproveApplication, handleRejectApplication, userRole === 'Admin' || userRole === 'Faculty', loading)}
           </TabsContent>
           
           <TabsContent value="approved" className="mt-6">
-            {renderApplicationList(filteredApplications, handleViewApplication, handleEditApplication, handleDeleteApplication, handleApproveApplication, handleRejectApplication, isAdmin)}
+            {renderApplicationList(filteredApplications, handleViewApplication, handleEditApplication, handleDeleteApplication, handleApproveApplication, handleRejectApplication, userRole === 'Admin' || userRole === 'Faculty', loading)}
           </TabsContent>
           
           <TabsContent value="rejected" className="mt-6">
-            {renderApplicationList(filteredApplications, handleViewApplication, handleEditApplication, handleDeleteApplication, handleApproveApplication, handleRejectApplication, isAdmin)}
+            {renderApplicationList(filteredApplications, handleViewApplication, handleEditApplication, handleDeleteApplication, handleApproveApplication, handleRejectApplication, userRole === 'Admin' || userRole === 'Faculty', loading)}
           </TabsContent>
         </Tabs>
       )}
@@ -241,11 +289,11 @@ const CandidateApplicationsManager: React.FC = () => {
         application={selectedApplication}
         isOpen={isDetailOpen}
         onClose={() => setIsDetailOpen(false)}
-        onEdit={!isAdmin ? handleEditApplication : undefined}
-        onDelete={!isAdmin ? handleDeleteApplication : undefined}
-        onApprove={isAdmin ? handleApproveApplication : undefined}
-        onReject={isAdmin ? handleRejectApplication : undefined}
-        isAdmin={isAdmin}
+        onEdit={userRole === 'Admin' || (userRole === 'Student' && selectedApplication?.status === 'pending') ? handleEditApplication : undefined}
+        onDelete={userRole === 'Admin' || (userRole === 'Student' && selectedApplication?.status === 'pending') ? handleDeleteApplication : undefined}
+        onApprove={(userRole === 'Admin' || userRole === 'Faculty') && selectedApplication?.status === 'pending' ? handleApproveApplication : undefined}
+        onReject={(userRole === 'Admin' || userRole === 'Faculty') && selectedApplication?.status === 'pending' ? handleRejectApplication : undefined}
+        isAdmin={userRole === 'Admin' || userRole === 'Faculty'}
       />
 
       <DeleteConfirmDialog
@@ -266,8 +314,17 @@ const renderApplicationList = (
   onDelete: (id: string) => void,
   onApprove: (id: string) => void,
   onReject: (id: string) => void,
-  isAdmin: boolean
+  isAdmin: boolean,
+  loading: boolean
 ) => {
+  if (loading) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-gray-500">Loading applications...</p>
+      </div>
+    );
+  }
+
   if (applications.length === 0) {
     return (
       <div className="text-center py-12">

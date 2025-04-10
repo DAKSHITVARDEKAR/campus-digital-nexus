@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,112 +8,101 @@ import { Button } from '@/components/ui/button';
 import { AlertCircle, Calendar, Clock, Check, Users } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
-import { useToast } from '@/hooks/use-toast';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
-
-// Mock data - would be fetched from Firestore in a real implementation
-const electionData = {
-  "election-2025": {
-    id: 'election-2025',
-    title: 'Student Council Election 2025',
-    description: 'Vote for your student representatives for the academic year 2025-2026. The elected council will represent student interests in administrative decisions and organize campus events.',
-    startDate: 'April 10, 2025',
-    endDate: 'April 15, 2025',
-    status: 'ongoing',
-    candidates: [
-      {
-        id: 'candidate-1',
-        name: 'Alex Johnson',
-        position: 'President',
-        department: 'Computer Science',
-        year: '3rd Year',
-        manifesto: 'Committed to improving campus technology infrastructure and creating more internship opportunities.',
-        imageUrl: 'https://randomuser.me/api/portraits/men/32.jpg',
-        voteCount: 145
-      },
-      {
-        id: 'candidate-2',
-        name: 'Samantha Wilson',
-        position: 'President',
-        department: 'Business Administration',
-        year: '3rd Year',
-        manifesto: 'Focused on enhancing student welfare services and creating a more inclusive campus environment.',
-        imageUrl: 'https://randomuser.me/api/portraits/women/65.jpg',
-        voteCount: 132
-      },
-      {
-        id: 'candidate-3',
-        name: 'Miguel Hernandez',
-        position: 'Vice President',
-        department: 'Engineering',
-        year: '2nd Year',
-        manifesto: 'Will work to improve academic resources and establish stronger industry connections.',
-        imageUrl: 'https://randomuser.me/api/portraits/men/45.jpg',
-        voteCount: 98
-      },
-      {
-        id: 'candidate-4',
-        name: 'Emily Zhang',
-        position: 'Vice President',
-        department: 'Life Sciences',
-        year: '3rd Year',
-        manifesto: 'Dedicated to sustainability initiatives and creating more research opportunities for undergraduates.',
-        imageUrl: 'https://randomuser.me/api/portraits/women/32.jpg',
-        voteCount: 110
-      }
-    ]
-  },
-  "election-past": {
-    id: 'election-past',
-    title: 'Student Council Election 2024',
-    description: 'Student Council election for the academic year 2024-2025.',
-    startDate: 'April 10, 2024',
-    endDate: 'April 15, 2024',
-    status: 'completed',
-    candidates: [
-      {
-        id: 'past-candidate-1',
-        name: 'Taylor Smith',
-        position: 'President',
-        department: 'Psychology',
-        year: '3rd Year',
-        manifesto: 'Focused on mental health resources and academic support services.',
-        imageUrl: 'https://randomuser.me/api/portraits/women/22.jpg',
-        voteCount: 178,
-        elected: true
-      },
-      {
-        id: 'past-candidate-2',
-        name: 'Omar Khan',
-        position: 'President',
-        department: 'Political Science',
-        year: '3rd Year',
-        manifesto: 'Advocating for more student involvement in university governance.',
-        imageUrl: 'https://randomuser.me/api/portraits/men/21.jpg',
-        voteCount: 132
-      }
-    ]
-  }
-};
+import useElectionApi from '@/hooks/useElectionApi';
+import { Election, Candidate } from '@/models/election';
+import { format, parseISO } from 'date-fns';
+import UserRoleSwitcher from '@/components/elections/UserRoleSwitcher';
+import { UserRole } from '@/services/mockAuth';
 
 const ElectionDetailsPage = () => {
   const { electionId } = useParams<{ electionId: string }>();
-  const [loading, setLoading] = useState(false);
-  const [votedFor, setVotedFor] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const api = useElectionApi();
   
-  // In a real implementation, this would be fetched from Firestore
-  const election = electionData[electionId as keyof typeof electionData];
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [election, setElection] = useState<Election | null>(null);
+  const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [votedFor, setVotedFor] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<UserRole>('Student');
   
-  if (!election) {
+  // Fetch election data
+  useEffect(() => {
+    const fetchElectionData = async () => {
+      if (!electionId) return;
+      
+      setLoading(true);
+      setError(null);
+      
+      try {
+        // Get election details
+        const electionData = await api.getElection(electionId);
+        if (electionData) {
+          setElection(electionData);
+          
+          // Get candidates
+          const candidatesData = await api.getCandidates(electionId);
+          if (candidatesData) {
+            setCandidates(candidatesData);
+          }
+          
+          // Check if user has voted
+          const hasVotedResult = await api.hasVoted(electionId);
+          if (hasVotedResult) {
+            const userVote = await api.getUserVote(electionId);
+            setVotedFor(userVote);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching election data:', err);
+        setError('Failed to load election data. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchElectionData();
+  }, [electionId, api]);
+  
+  const handleVote = async (candidateId: string) => {
+    if (!electionId) return;
+    
+    setLoading(true);
+    setError(null);
+    
+    try {
+      await api.castVote(electionId, candidateId);
+      setVotedFor(candidateId);
+    } catch (err) {
+      console.error('Error casting vote:', err);
+      // Error is already handled by the API hook
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const handleRoleChange = (role: UserRole) => {
+    setUserRole(role);
+  };
+  
+  if (loading && !election) {
+    return (
+      <Layout>
+        <div className="flex justify-center items-center h-64">
+          <p>Loading election details...</p>
+        </div>
+      </Layout>
+    );
+  }
+  
+  if (error || !election) {
     return (
       <Layout>
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Error</AlertTitle>
-          <AlertDescription>Election not found. Please select a valid election.</AlertDescription>
+          <AlertDescription>{error || 'Election not found. Please select a valid election.'}</AlertDescription>
         </Alert>
         <Button onClick={() => navigate('/elections')} className="mt-4">
           Back to Elections
@@ -122,35 +111,11 @@ const ElectionDetailsPage = () => {
     );
   }
   
-  const handleVote = async (candidateId: string) => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      // In a real implementation, this would call a Firebase Cloud Function
-      // await castVote({ electionId, candidateId });
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      setVotedFor(candidateId);
-      toast({
-        title: "Vote Cast Successfully",
-        description: "Your vote has been recorded. Thank you for participating!",
-      });
-    } catch (err) {
-      setError("There was an error processing your vote. Please try again.");
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-  
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'upcoming':
         return 'bg-blue-100 text-blue-800 border-blue-100';
-      case 'ongoing':
+      case 'active':
         return 'bg-green-100 text-green-800 border-green-100';
       case 'completed':
         return 'bg-gray-100 text-gray-800 border-gray-100';
@@ -161,28 +126,42 @@ const ElectionDetailsPage = () => {
   
   const statusText = {
     upcoming: 'Upcoming',
-    ongoing: 'Ongoing',
-    completed: 'Completed'
+    active: 'Ongoing',
+    completed: 'Completed',
+    cancelled: 'Cancelled'
   };
   
   // Prepare chart data
-  const chartData = election.candidates.map(candidate => ({
-    name: candidate.name.split(' ')[0], // Just use first name for brevity
+  const chartData = candidates.map(candidate => ({
+    name: candidate.studentName.split(' ')[0], // Just use first name for brevity
     votes: candidate.voteCount
   }));
+  
+  const formatDate = (dateString: string) => {
+    try {
+      return format(parseISO(dateString), 'MMMM d, yyyy');
+    } catch (e) {
+      return dateString;
+    }
+  };
   
   return (
     <Layout>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight">{election.title}</h1>
-        <div className="flex items-center mt-2">
-          <Badge className={getStatusColor(election.status)}>
-            {statusText[election.status as keyof typeof statusText]}
-          </Badge>
-          <div className="ml-4 flex items-center text-sm text-muted-foreground">
-            <Calendar className="mr-1 h-4 w-4" />
-            <span>{election.startDate} - {election.endDate}</span>
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">{election.title}</h1>
+            <div className="flex items-center mt-2">
+              <Badge className={getStatusColor(election.status)}>
+                {statusText[election.status as keyof typeof statusText]}
+              </Badge>
+              <div className="ml-4 flex items-center text-sm text-muted-foreground">
+                <Calendar className="mr-1 h-4 w-4" />
+                <span>{formatDate(election.startDate)} - {formatDate(election.endDate)}</span>
+              </div>
+            </div>
           </div>
+          <UserRoleSwitcher onRoleChange={handleRoleChange} />
         </div>
       </div>
       
@@ -211,7 +190,7 @@ const ElectionDetailsPage = () => {
                   </div>
                   <div className="ml-3">
                     <p className="text-sm text-muted-foreground">Period</p>
-                    <p className="font-medium">{election.startDate} - {election.endDate}</p>
+                    <p className="font-medium">{formatDate(election.startDate)} - {formatDate(election.endDate)}</p>
                   </div>
                 </div>
                 
@@ -221,7 +200,7 @@ const ElectionDetailsPage = () => {
                   </div>
                   <div className="ml-3">
                     <p className="text-sm text-muted-foreground">Candidates</p>
-                    <p className="font-medium">{election.candidates.length} Candidates</p>
+                    <p className="font-medium">{candidates.length} Candidates</p>
                   </div>
                 </div>
                 
@@ -239,12 +218,12 @@ const ElectionDetailsPage = () => {
           </Card>
           
           {/* Results Chart (visible for ongoing and completed elections) */}
-          {(election.status === 'ongoing' || election.status === 'completed') && (
+          {(election.status === 'active' || election.status === 'completed') && (
             <Card className="mt-6">
               <CardHeader>
                 <CardTitle>Live Results</CardTitle>
                 <CardDescription>
-                  {election.status === 'ongoing' 
+                  {election.status === 'active' 
                     ? 'Current standings as votes are being counted'
                     : 'Final election results'}
                 </CardDescription>
@@ -309,12 +288,12 @@ const ElectionDetailsPage = () => {
                 <Alert className="mt-4">
                   <AlertTitle>This election has not started yet</AlertTitle>
                   <AlertDescription>
-                    Voting will begin on {election.startDate}.
+                    Voting will begin on {formatDate(election.startDate)}.
                   </AlertDescription>
                 </Alert>
               )}
               
-              {votedFor && election.status === 'ongoing' && (
+              {votedFor && election.status === 'active' && (
                 <Alert className="mt-4 bg-green-50 border-green-200">
                   <Check className="h-4 w-4 text-green-600" />
                   <AlertTitle className="text-green-800">Vote recorded</AlertTitle>
@@ -331,25 +310,25 @@ const ElectionDetailsPage = () => {
       <h2 className="text-xl font-semibold mb-4">Candidates</h2>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {election.candidates.map((candidate) => (
+        {candidates.map((candidate) => (
           <Card key={candidate.id} className="overflow-hidden">
             <div className="flex flex-col md:flex-row">
               <div className="md:w-1/3">
                 <img 
-                  src={candidate.imageUrl} 
-                  alt={candidate.name}
+                  src={candidate.imageUrl || 'https://via.placeholder.com/300'} 
+                  alt={candidate.studentName}
                   className="w-full h-full object-cover aspect-square"
                 />
               </div>
               <div className="p-4 md:w-2/3">
                 <div className="flex justify-between items-start">
                   <div>
-                    <h3 className="font-semibold text-lg">{candidate.name}</h3>
+                    <h3 className="font-semibold text-lg">{candidate.studentName}</h3>
                     <p className="text-sm text-muted-foreground">{candidate.position}</p>
                   </div>
-                  {candidate.elected && (
+                  {candidate.voteCount > 0 && election.status === 'completed' && (
                     <Badge className="bg-green-100 text-green-800 border-green-100">
-                      Elected
+                      {candidate.voteCount} votes
                     </Badge>
                   )}
                 </div>
@@ -363,7 +342,7 @@ const ElectionDetailsPage = () => {
                 
                 <p className="text-sm mb-4">{candidate.manifesto}</p>
                 
-                {election.status === 'ongoing' && !votedFor && (
+                {election.status === 'active' && !votedFor && (
                   <Button 
                     onClick={() => handleVote(candidate.id)}
                     disabled={loading}
@@ -373,7 +352,7 @@ const ElectionDetailsPage = () => {
                   </Button>
                 )}
                 
-                {election.status === 'ongoing' && votedFor === candidate.id && (
+                {election.status === 'active' && votedFor === candidate.id && (
                   <Button 
                     variant="outline"
                     className="w-full border-green-500 text-green-600 flex items-center justify-center"

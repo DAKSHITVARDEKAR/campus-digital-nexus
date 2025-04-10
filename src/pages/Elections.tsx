@@ -1,64 +1,22 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
-import { ElectionCard } from '@/components/elections/ElectionCard';
-import { VoteChart } from '@/components/elections/VoteChart';
-import { ElectionTrendChart } from '@/components/elections/ElectionTrendChart'; 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Users, CheckCircle, Clock, Calendar } from 'lucide-react';
+import { Users, CheckCircle, Clock, Calendar, Plus } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { VoteChart } from '@/components/elections/VoteChart';
+import { ElectionTrendChart } from '@/components/elections/ElectionTrendChart';
+import ElectionList from '@/components/elections/ElectionList';
 import CandidateApplicationsManager from '@/components/elections/CandidateApplicationsManager';
+import UserRoleSwitcher from '@/components/elections/UserRoleSwitcher';
+import useElectionApi from '@/hooks/useElectionApi';
+import useAuthStatus from '@/hooks/useAuthStatus';
+import { Election } from '@/models/election';
 
-// Mock data
-const activeElections = [
-  {
-    id: '1',
-    title: 'Student Council 2023-24',
-    description: 'Vote for your representatives for the upcoming academic year. The elected council will represent student interests and organize various events.',
-    startDate: 'Apr 5, 2023',
-    endDate: 'Apr 12, 2023',
-    status: 'active' as const,
-    candidateCount: 8,
-    votesCount: 320,
-  },
-  {
-    id: '2',
-    title: 'Cultural Committee Selection',
-    description: 'Select members for the cultural committee who will organize cultural events throughout the year.',
-    startDate: 'Apr 7, 2023',
-    endDate: 'Apr 14, 2023',
-    status: 'active' as const,
-    candidateCount: 12,
-    votesCount: 215,
-  },
-];
-
-const upcomingElections = [
-  {
-    id: '3',
-    title: 'Sports Committee Election',
-    description: 'Vote for the sports committee members who will organize sports events and manage sports facilities.',
-    startDate: 'Apr 20, 2023',
-    endDate: 'Apr 27, 2023',
-    status: 'upcoming' as const,
-    candidateCount: 6,
-  },
-];
-
-const completedElections = [
-  {
-    id: '4',
-    title: 'Department Representatives',
-    description: 'Election for department representatives who will liaise between students and faculty.',
-    startDate: 'Mar 15, 2023',
-    endDate: 'Mar 22, 2023',
-    status: 'completed' as const,
-    candidateCount: 15,
-    votesCount: 450,
-  },
-];
-
+// Mock data for statistics section
 const studentCouncilResults = [
   { id: '1', name: 'Alex Chen', votes: 120, color: '#0088FE' },
   { id: '2', name: 'Sarah Johnson', votes: 85, color: '#00C49F' },
@@ -74,60 +32,46 @@ const electionTrendData = [
   { month: 'May', participation: 55 },
 ];
 
-const studentCouncilCandidates = [
-  {
-    id: '1',
-    name: 'Alex Chen',
-    position: 'President',
-    department: 'Computer Science',
-    year: '3rd Year',
-    manifesto: 'I plan to enhance the academic resources and create more opportunities for technical skill development.',
-    imageUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=774&h=774'
-  },
-  {
-    id: '2',
-    name: 'Sarah Johnson',
-    position: 'Vice President',
-    department: 'Business Administration',
-    year: '2nd Year',
-    manifesto: 'My aim is to bridge the gap between students and administration, ensuring every voice is heard.',
-    imageUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=774&h=774'
-  },
-  {
-    id: '3',
-    name: 'Michael Brown',
-    position: 'Secretary',
-    department: 'Electrical Engineering',
-    year: '4th Year',
-    manifesto: 'I will focus on improving infrastructure and creating better study environments.',
-    imageUrl: 'https://images.unsplash.com/photo-1500648741775-53994a69daeb?auto=format&fit=crop&q=80&w=774&h=774'
-  },
-  {
-    id: '4',
-    name: 'Jessica Lee',
-    position: 'Treasurer',
-    department: 'Finance',
-    year: '3rd Year',
-    manifesto: 'I bring strong financial management skills to ensure transparent and efficient use of student funds.',
-    imageUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=774&h=774'
-  },
-];
-
 const Elections = () => {
-  const [selectedElection, setSelectedElection] = useState('1');
-  const [hasVoted, setHasVoted] = useState(false);
-
-  const handleVote = (candidateId: string) => {
-    console.log(`Voted for candidate ${candidateId}`);
-    setHasVoted(true);
-    // Here you would typically call the castVote function
-  };
-
+  const { user } = useAuthStatus();
+  const api = useElectionApi();
+  
+  const [elections, setElections] = useState<Election[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Fetch elections
+  useEffect(() => {
+    const fetchElections = async () => {
+      setLoading(true);
+      setError(null);
+      
+      try {
+        const electionData = await api.getElections();
+        if (electionData) {
+          setElections(electionData);
+        }
+      } catch (err) {
+        console.error('Error fetching elections:', err);
+        setError('Failed to load elections. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchElections();
+  }, [api]);
+  
   return (
     <Layout>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight">Student Elections</h1>
-        <p className="text-muted-foreground">View ongoing, upcoming, and past elections. Cast your vote in active elections.</p>
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Student Elections</h1>
+            <p className="text-muted-foreground">View ongoing, upcoming, and past elections. Cast your vote in active elections.</p>
+          </div>
+          <UserRoleSwitcher />
+        </div>
       </div>
       
       <Tabs defaultValue="active" className="mb-6">
@@ -136,61 +80,43 @@ const Elections = () => {
           <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
           <TabsTrigger value="completed">Completed</TabsTrigger>
           <TabsTrigger value="results">Results</TabsTrigger>
-          <TabsTrigger value="candidates">Candidates</TabsTrigger>
           <TabsTrigger value="applications">Applications</TabsTrigger>
           <TabsTrigger value="stats">Statistics</TabsTrigger>
+          {user?.role === 'Admin' && (
+            <TabsTrigger value="manage">Manage Elections</TabsTrigger>
+          )}
         </TabsList>
         
         <TabsContent value="active">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
-            {activeElections.map((election) => (
-              <ElectionCard 
-                key={election.id}
-                id={election.id}
-                title={election.title}
-                description={election.description}
-                startDate={election.startDate}
-                endDate={election.endDate}
-                status={election.status}
-                candidateCount={election.candidateCount}
-                votesCount={election.votesCount}
-              />
-            ))}
+          <div className="mt-6">
+            <ElectionList 
+              elections={elections} 
+              loading={loading} 
+              error={error} 
+              filter="active"
+            />
           </div>
         </TabsContent>
         
         <TabsContent value="upcoming">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
-            {upcomingElections.map((election) => (
-              <ElectionCard 
-                key={election.id}
-                id={election.id}
-                title={election.title}
-                description={election.description}
-                startDate={election.startDate}
-                endDate={election.endDate}
-                status={election.status}
-                candidateCount={election.candidateCount}
-              />
-            ))}
+          <div className="mt-6">
+            <ElectionList 
+              elections={elections} 
+              loading={loading} 
+              error={error} 
+              filter="upcoming"
+            />
           </div>
         </TabsContent>
         
         <TabsContent value="completed">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
-            {completedElections.map((election) => (
-              <ElectionCard 
-                key={election.id}
-                id={election.id}
-                title={election.title}
-                description={election.description}
-                startDate={election.startDate}
-                endDate={election.endDate}
-                status={election.status}
-                candidateCount={election.candidateCount}
-                votesCount={election.votesCount}
-              />
-            ))}
+          <div className="mt-6">
+            <ElectionList 
+              elections={elections} 
+              loading={loading} 
+              error={error} 
+              filter="completed"
+            />
           </div>
         </TabsContent>
         
@@ -237,45 +163,6 @@ const Elections = () => {
               </CardContent>
             </Card>
           </div>
-        </TabsContent>
-        
-        <TabsContent value="candidates">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-6">
-            {studentCouncilCandidates.map((candidate) => (
-              <Card key={candidate.id} className="overflow-hidden">
-                <div className="aspect-square overflow-hidden">
-                  <img 
-                    src={candidate.imageUrl} 
-                    alt={candidate.name}
-                    className="w-full h-full object-cover transition-transform hover:scale-105"
-                  />
-                </div>
-                <CardContent className="p-4">
-                  <h3 className="font-semibold text-lg">{candidate.name}</h3>
-                  <div className="flex items-center space-x-2 mt-1">
-                    <Badge variant="outline">{candidate.position}</Badge>
-                    <Badge variant="secondary">{candidate.department}</Badge>
-                  </div>
-                  <p className="text-sm mt-2">{candidate.manifesto}</p>
-                  {!hasVoted && (
-                    <Button 
-                      className="w-full mt-4" 
-                      onClick={() => handleVote(candidate.id)}
-                    >
-                      Vote
-                    </Button>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-          
-          {hasVoted && (
-            <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center">
-              <CheckCircle className="h-5 w-5 text-green-600 mr-2" />
-              <p className="text-green-800">Your vote has been successfully recorded. Thank you for participating!</p>
-            </div>
-          )}
         </TabsContent>
         
         <TabsContent value="applications">
@@ -365,6 +252,33 @@ const Elections = () => {
             </Card>
           </div>
         </TabsContent>
+        
+        {user?.role === 'Admin' && (
+          <TabsContent value="manage">
+            <div className="mt-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-semibold">Manage Elections</h2>
+                <Button className="flex items-center gap-1">
+                  <Plus className="h-4 w-4" />
+                  Create New Election
+                </Button>
+              </div>
+              
+              <Alert className="mb-6">
+                <AlertDescription>
+                  This section allows you to create, edit, and manage all elections. Only administrators can access these controls.
+                </AlertDescription>
+              </Alert>
+              
+              <ElectionList 
+                elections={elections} 
+                loading={loading} 
+                error={error} 
+                filter="all"
+              />
+            </div>
+          </TabsContent>
+        )}
       </Tabs>
       
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
