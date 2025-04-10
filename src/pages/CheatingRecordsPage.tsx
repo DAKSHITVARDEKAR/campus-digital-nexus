@@ -1,16 +1,19 @@
-
 import React, { useState, useEffect } from 'react';
 import Layout from '@/components/layout/Layout';
 import { Helmet } from 'react-helmet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Plus } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import CheatingRecordCard, { CheatingRecordType } from '@/components/cheating/CheatingRecordCard';
 import CheatingRecordDetail from '@/components/cheating/CheatingRecordDetail';
 import CheatingRecordsFilter from '@/components/cheating/CheatingRecordsFilter';
+import AddEditRecordModal from '@/components/cheating/AddEditRecordModal';
+import DeleteConfirmDialog from '@/components/cheating/DeleteConfirmDialog';
 import { sub } from 'date-fns';
+import { useToast } from '@/components/ui/use-toast';
+import { v4 as uuidv4 } from 'uuid';
 
 // Mock data for cheating records
 const mockCheatingRecords: CheatingRecordType[] = [
@@ -83,6 +86,7 @@ const mockCheatingRecords: CheatingRecordType[] = [
 ];
 
 const CheatingRecordsPage: React.FC = () => {
+  const { toast } = useToast();
   const [records, setRecords] = useState<CheatingRecordType[]>([]);
   const [filteredRecords, setFilteredRecords] = useState<CheatingRecordType[]>([]);
   const [selectedRecord, setSelectedRecord] = useState<CheatingRecordType | null>(null);
@@ -94,18 +98,20 @@ const CheatingRecordsPage: React.FC = () => {
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [courseFilter, setCourseFilter] = useState('all');
   const [activeTab, setActiveTab] = useState('all');
+  
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [recordToEdit, setRecordToEdit] = useState<CheatingRecordType | null>(null);
+  const [recordToDelete, setRecordToDelete] = useState<string | null>(null);
 
-  // Simulate fetching data on component mount
   useEffect(() => {
-    // In a real app, this would be an API call
     setRecords(mockCheatingRecords);
   }, []);
 
-  // Apply filters whenever filter states change
   useEffect(() => {
     let filtered = [...records];
     
-    // Apply search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(record => 
@@ -115,19 +121,16 @@ const CheatingRecordsPage: React.FC = () => {
       );
     }
     
-    // Apply severity filter
     if (severityFilter !== 'all') {
       filtered = filtered.filter(record => record.severity === severityFilter);
     }
     
-    // Apply course filter
     if (courseFilter !== 'all') {
       filtered = filtered.filter(record => 
         record.course.toLowerCase().includes(courseFilter.toLowerCase())
       );
     }
     
-    // Apply time filter
     if (timeFilter !== 'all') {
       const now = new Date();
       switch (timeFilter) {
@@ -157,7 +160,6 @@ const CheatingRecordsPage: React.FC = () => {
       }
     }
     
-    // Apply tab filter
     if (activeTab !== 'all') {
       filtered = filtered.filter(record => record.severity === activeTab);
     }
@@ -183,6 +185,73 @@ const CheatingRecordsPage: React.FC = () => {
     setActiveTab('all');
   };
 
+  const handleAddRecord = () => {
+    setIsAddModalOpen(true);
+  };
+
+  const handleEditRecord = (recordId: string) => {
+    const record = records.find(r => r.id === recordId);
+    if (record) {
+      setRecordToEdit(record);
+      setIsEditModalOpen(true);
+    }
+  };
+
+  const handleDeleteRecord = (recordId: string) => {
+    setRecordToDelete(recordId);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const saveNewRecord = (recordData: Partial<CheatingRecordType>) => {
+    const newRecord: CheatingRecordType = {
+      id: uuidv4(),
+      studentName: recordData.studentName || '',
+      studentId: recordData.studentId || '',
+      course: recordData.course || '',
+      reason: recordData.reason || '',
+      severity: recordData.severity as 'minor' | 'moderate' | 'severe' || 'minor',
+      proofAvailable: Boolean(recordData.proofAvailable),
+      date: recordData.date || new Date(),
+      reportedBy: recordData.reportedBy || ''
+    };
+    
+    setRecords(prev => [...prev, newRecord]);
+    
+    toast({
+      title: "Record Created",
+      description: "The academic integrity violation record has been created successfully."
+    });
+  };
+
+  const updateRecord = (recordData: Partial<CheatingRecordType>) => {
+    if (!recordToEdit) return;
+    
+    setRecords(prev => prev.map(record => 
+      record.id === recordToEdit.id 
+        ? { ...record, ...recordData } 
+        : record
+    ));
+    
+    toast({
+      title: "Record Updated",
+      description: "The academic integrity violation record has been updated successfully."
+    });
+  };
+
+  const confirmDeleteRecord = () => {
+    if (!recordToDelete) return;
+    
+    setRecords(prev => prev.filter(record => record.id !== recordToDelete));
+    
+    toast({
+      title: "Record Deleted",
+      description: "The academic integrity violation record has been deleted successfully."
+    });
+    
+    setRecordToDelete(null);
+    setIsDeleteDialogOpen(false);
+  };
+
   return (
     <Layout>
       <Helmet>
@@ -190,11 +259,17 @@ const CheatingRecordsPage: React.FC = () => {
       </Helmet>
       
       <div className="container mx-auto space-y-6 pb-8">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Academic Integrity Records</h1>
-          <p className="text-muted-foreground mt-1">
-            View and track academic integrity violations
-          </p>
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Academic Integrity Records</h1>
+            <p className="text-muted-foreground mt-1">
+              View and track academic integrity violations
+            </p>
+          </div>
+          <Button onClick={handleAddRecord} className="flex items-center gap-1">
+            <Plus className="h-4 w-4" />
+            Add Record
+          </Button>
         </div>
         
         <Alert variant="default" className="bg-amber-50 text-amber-800 border-amber-200">
@@ -231,19 +306,19 @@ const CheatingRecordsPage: React.FC = () => {
           </TabsList>
           
           <TabsContent value="all" className="mt-6">
-            {renderRecordsList(filteredRecords, handleViewDetails)}
+            {renderRecordsList(filteredRecords, handleViewDetails, handleEditRecord, handleDeleteRecord)}
           </TabsContent>
           
           <TabsContent value="minor" className="mt-6">
-            {renderRecordsList(filteredRecords, handleViewDetails)}
+            {renderRecordsList(filteredRecords, handleViewDetails, handleEditRecord, handleDeleteRecord)}
           </TabsContent>
           
           <TabsContent value="moderate" className="mt-6">
-            {renderRecordsList(filteredRecords, handleViewDetails)}
+            {renderRecordsList(filteredRecords, handleViewDetails, handleEditRecord, handleDeleteRecord)}
           </TabsContent>
           
           <TabsContent value="severe" className="mt-6">
-            {renderRecordsList(filteredRecords, handleViewDetails)}
+            {renderRecordsList(filteredRecords, handleViewDetails, handleEditRecord, handleDeleteRecord)}
           </TabsContent>
         </Tabs>
       </div>
@@ -253,14 +328,36 @@ const CheatingRecordsPage: React.FC = () => {
         isOpen={isDetailOpen}
         onClose={() => setIsDetailOpen(false)}
       />
+      
+      <AddEditRecordModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onSave={saveNewRecord}
+        isEditMode={false}
+      />
+      
+      <AddEditRecordModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        onSave={updateRecord}
+        record={recordToEdit || undefined}
+        isEditMode={true}
+      />
+      
+      <DeleteConfirmDialog
+        isOpen={isDeleteDialogOpen}
+        onClose={() => setIsDeleteDialogOpen(false)}
+        onConfirm={confirmDeleteRecord}
+      />
     </Layout>
   );
 };
 
-// Helper function to render the records list
 const renderRecordsList = (
   records: CheatingRecordType[], 
-  onViewDetails: (id: string) => void
+  onViewDetails: (id: string) => void,
+  onEditRecord: (id: string) => void,
+  onDeleteRecord: (id: string) => void
 ) => {
   if (records.length === 0) {
     return (
@@ -280,7 +377,9 @@ const renderRecordsList = (
         <CheatingRecordCard 
           key={record.id} 
           record={record} 
-          onViewDetails={onViewDetails} 
+          onViewDetails={onViewDetails}
+          onEditRecord={onEditRecord}
+          onDeleteRecord={onDeleteRecord} 
         />
       ))}
     </div>
