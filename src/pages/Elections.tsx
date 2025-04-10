@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { ElectionCard } from '@/components/elections/ElectionCard';
@@ -9,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Users, CheckCircle, Clock, Calendar } from 'lucide-react';
+import CandidateApplicationsManager from '@/components/elections/CandidateApplicationsManager';
 
 // Mock data
 const activeElections = [
@@ -100,7 +100,7 @@ const studentCouncilCandidates = [
     department: 'Electrical Engineering',
     year: '4th Year',
     manifesto: 'I will focus on improving infrastructure and creating better study environments.',
-    imageUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=774&h=774'
+    imageUrl: 'https://images.unsplash.com/photo-1500648741775-53994a69daeb?auto=format&fit=crop&q=80&w=774&h=774'
   },
   {
     id: '4',
@@ -137,6 +137,7 @@ const Elections = () => {
           <TabsTrigger value="completed">Completed</TabsTrigger>
           <TabsTrigger value="results">Results</TabsTrigger>
           <TabsTrigger value="candidates">Candidates</TabsTrigger>
+          <TabsTrigger value="applications">Applications</TabsTrigger>
           <TabsTrigger value="stats">Statistics</TabsTrigger>
         </TabsList>
         
@@ -275,6 +276,10 @@ const Elections = () => {
               <p className="text-green-800">Your vote has been successfully recorded. Thank you for participating!</p>
             </div>
           )}
+        </TabsContent>
+        
+        <TabsContent value="applications">
+          <CandidateApplicationsManager />
         </TabsContent>
         
         <TabsContent value="stats">

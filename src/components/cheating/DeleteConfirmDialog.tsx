@@ -17,6 +17,9 @@ type DeleteConfirmDialogProps = {
   onConfirm: () => void;
   title?: string;
   description?: string;
+  confirmText?: string;
+  cancelText?: string;
+  confirmButtonClass?: string;
 };
 
 const DeleteConfirmDialog: React.FC<DeleteConfirmDialogProps> = ({
@@ -24,7 +27,10 @@ const DeleteConfirmDialog: React.FC<DeleteConfirmDialogProps> = ({
   onClose,
   onConfirm,
   title = "Delete Record",
-  description = "Are you sure you want to delete this record? This action cannot be undone."
+  description = "Are you sure you want to delete this record? This action cannot be undone.",
+  confirmText = "Delete",
+  cancelText = "Cancel",
+  confirmButtonClass = "bg-red-500 hover:bg-red-600"
 }) => {
   return (
     <AlertDialog open={isOpen} onOpenChange={onClose}>
@@ -36,9 +42,9 @@ const DeleteConfirmDialog: React.FC<DeleteConfirmDialogProps> = ({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction onClick={onConfirm} className="bg-red-500 hover:bg-red-600">
-            Delete
+          <AlertDialogCancel>{cancelText}</AlertDialogCancel>
+          <AlertDialogAction onClick={onConfirm} className={confirmButtonClass}>
+            {confirmText}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
