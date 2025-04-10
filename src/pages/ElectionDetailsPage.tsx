@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
@@ -115,6 +116,12 @@ const ElectionDetailsPage = () => {
     }
   };
   
+  // Prepare chart data from candidates
+  const chartData = candidates.map(candidate => ({
+    name: candidate.studentName,
+    votes: candidate.voteCount
+  }));
+  
   return (
     <Layout>
       <div className="mb-6">
@@ -158,7 +165,7 @@ const ElectionDetailsPage = () => {
             </CardHeader>
             <CardContent>
               <p className="text-muted-foreground">
-                {election.description}
+                {election?.description}
               </p>
               
               <div className="flex flex-col sm:flex-row justify-between mt-6 space-y-4 sm:space-y-0">
@@ -168,7 +175,7 @@ const ElectionDetailsPage = () => {
                   </div>
                   <div className="ml-3">
                     <p className="text-sm text-muted-foreground">Period</p>
-                    <p className="font-medium">{formatDate(election.startDate)} - {formatDate(election.endDate)}</p>
+                    <p className="font-medium">{election && formatDate(election.startDate)} - {election && formatDate(election.endDate)}</p>
                   </div>
                 </div>
                 
@@ -188,14 +195,14 @@ const ElectionDetailsPage = () => {
                   </div>
                   <div className="ml-3">
                     <p className="text-sm text-muted-foreground">Status</p>
-                    <p className="font-medium capitalize">{election.status}</p>
+                    <p className="font-medium capitalize">{election?.status}</p>
                   </div>
                 </div>
               </div>
             </CardContent>
           </Card>
           
-          {(election.status === 'active' || election.status === 'completed') && (
+          {election && (election.status === 'active' || election.status === 'completed') && (
             <Card className="mt-6">
               <CardHeader>
                 <CardTitle>Live Results</CardTitle>
@@ -252,7 +259,7 @@ const ElectionDetailsPage = () => {
                 </li>
               </ul>
               
-              {election.status === 'completed' && (
+              {election && election.status === 'completed' && (
                 <Alert className="mt-4">
                   <AlertTitle>This election has ended</AlertTitle>
                   <AlertDescription>
@@ -261,7 +268,7 @@ const ElectionDetailsPage = () => {
                 </Alert>
               )}
               
-              {election.status === 'upcoming' && (
+              {election && election.status === 'upcoming' && (
                 <Alert className="mt-4">
                   <AlertTitle>This election has not started yet</AlertTitle>
                   <AlertDescription>
@@ -270,7 +277,7 @@ const ElectionDetailsPage = () => {
                 </Alert>
               )}
               
-              {votedFor && election.status === 'active' && (
+              {votedFor && election && election.status === 'active' && (
                 <Alert className="mt-4 bg-green-50 border-green-200">
                   <Check className="h-4 w-4 text-green-600" />
                   <AlertTitle className="text-green-800">Vote recorded</AlertTitle>
