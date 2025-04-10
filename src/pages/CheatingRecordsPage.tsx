@@ -90,6 +90,9 @@ const CheatingRecordsPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [severityFilter, setSeverityFilter] = useState('all');
   const [timeFilter, setTimeFilter] = useState('all');
+  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
+  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
+  const [courseFilter, setCourseFilter] = useState('all');
   const [activeTab, setActiveTab] = useState('all');
 
   // Simulate fetching data on component mount
@@ -117,6 +120,13 @@ const CheatingRecordsPage: React.FC = () => {
       filtered = filtered.filter(record => record.severity === severityFilter);
     }
     
+    // Apply course filter
+    if (courseFilter !== 'all') {
+      filtered = filtered.filter(record => 
+        record.course.toLowerCase().includes(courseFilter.toLowerCase())
+      );
+    }
+    
     // Apply time filter
     if (timeFilter !== 'all') {
       const now = new Date();
@@ -136,6 +146,14 @@ const CheatingRecordsPage: React.FC = () => {
             record.date >= sub(now, { months: 9 })
           );
           break;
+        case 'custom':
+          if (startDate) {
+            filtered = filtered.filter(record => record.date >= startDate);
+          }
+          if (endDate) {
+            filtered = filtered.filter(record => record.date <= endDate);
+          }
+          break;
       }
     }
     
@@ -145,7 +163,7 @@ const CheatingRecordsPage: React.FC = () => {
     }
     
     setFilteredRecords(filtered);
-  }, [records, searchQuery, severityFilter, timeFilter, activeTab]);
+  }, [records, searchQuery, severityFilter, timeFilter, courseFilter, startDate, endDate, activeTab]);
 
   const handleViewDetails = (recordId: string) => {
     const record = records.find(r => r.id === recordId);
@@ -153,6 +171,16 @@ const CheatingRecordsPage: React.FC = () => {
       setSelectedRecord(record);
       setIsDetailOpen(true);
     }
+  };
+
+  const handleResetFilters = () => {
+    setSearchQuery('');
+    setSeverityFilter('all');
+    setTimeFilter('all');
+    setCourseFilter('all');
+    setStartDate(undefined);
+    setEndDate(undefined);
+    setActiveTab('all');
   };
 
   return (
@@ -185,6 +213,13 @@ const CheatingRecordsPage: React.FC = () => {
           onSeverityChange={setSeverityFilter}
           timeFilter={timeFilter}
           onTimeChange={setTimeFilter}
+          startDate={startDate}
+          onStartDateChange={setStartDate}
+          endDate={endDate}
+          onEndDateChange={setEndDate}
+          courseFilter={courseFilter}
+          onCourseFilterChange={setCourseFilter}
+          onResetFilters={handleResetFilters}
         />
         
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
