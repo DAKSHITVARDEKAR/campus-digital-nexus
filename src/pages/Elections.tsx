@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -13,10 +12,9 @@ import ElectionList from '@/components/elections/ElectionList';
 import CandidateApplicationsManager from '@/components/elections/CandidateApplicationsManager';
 import UserRoleSwitcher from '@/components/elections/UserRoleSwitcher';
 import useElectionApi from '@/hooks/useElectionApi';
-import useAuthStatus from '@/hooks/useAuthStatus';
+import { useAuth } from '@/contexts/AuthContext';
 import { Election } from '@/models/election';
 
-// Mock data for statistics section
 const studentCouncilResults = [
   { id: '1', name: 'Alex Chen', votes: 120, color: '#0088FE' },
   { id: '2', name: 'Sarah Johnson', votes: 85, color: '#00C49F' },
@@ -33,14 +31,13 @@ const electionTrendData = [
 ];
 
 const Elections = () => {
-  const { user } = useAuthStatus();
+  const { user, hasPermission } = useAuth();
   const api = useElectionApi();
   
   const [elections, setElections] = useState<Election[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
-  // Fetch elections
   useEffect(() => {
     const fetchElections = async () => {
       setLoading(true);
@@ -82,7 +79,7 @@ const Elections = () => {
           <TabsTrigger value="results">Results</TabsTrigger>
           <TabsTrigger value="applications">Applications</TabsTrigger>
           <TabsTrigger value="stats">Statistics</TabsTrigger>
-          {user?.role === 'Admin' && (
+          {hasPermission('manage', 'election') && (
             <TabsTrigger value="manage">Manage Elections</TabsTrigger>
           )}
         </TabsList>
@@ -253,7 +250,7 @@ const Elections = () => {
           </div>
         </TabsContent>
         
-        {user?.role === 'Admin' && (
+        {hasPermission('manage', 'election') && (
           <TabsContent value="manage">
             <div className="mt-6">
               <div className="flex justify-between items-center mb-6">

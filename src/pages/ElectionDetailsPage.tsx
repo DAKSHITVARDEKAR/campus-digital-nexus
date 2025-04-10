@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
@@ -10,22 +9,22 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import useElectionApi from '@/hooks/useElectionApi';
+import { useAuth } from '@/contexts/AuthContext';
 import { Election, Candidate } from '@/models/election';
 import { format, parseISO } from 'date-fns';
 import UserRoleSwitcher from '@/components/elections/UserRoleSwitcher';
-import { UserRole } from '@/services/mockAuth';
 
 const ElectionDetailsPage = () => {
   const { electionId } = useParams<{ electionId: string }>();
   const navigate = useNavigate();
   const api = useElectionApi();
+  const { user, hasPermission } = useAuth();
   
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [election, setElection] = useState<Election | null>(null);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [votedFor, setVotedFor] = useState<string | null>(null);
-  const [userRole, setUserRole] = useState<UserRole>('Student');
   
   // Fetch election data
   useEffect(() => {
@@ -68,6 +67,12 @@ const ElectionDetailsPage = () => {
   const handleVote = async (candidateId: string) => {
     if (!electionId) return;
     
+    // Check if user has permission to vote
+    if (!hasPermission('create', 'vote')) {
+      api.showErrorToast('You do not have permission to vote');
+      return;
+    }
+    
     setLoading(true);
     setError(null);
     
@@ -81,35 +86,6 @@ const ElectionDetailsPage = () => {
       setLoading(false);
     }
   };
-  
-  const handleRoleChange = (role: UserRole) => {
-    setUserRole(role);
-  };
-  
-  if (loading && !election) {
-    return (
-      <Layout>
-        <div className="flex justify-center items-center h-64">
-          <p>Loading election details...</p>
-        </div>
-      </Layout>
-    );
-  }
-  
-  if (error || !election) {
-    return (
-      <Layout>
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Error</AlertTitle>
-          <AlertDescription>{error || 'Election not found. Please select a valid election.'}</AlertDescription>
-        </Alert>
-        <Button onClick={() => navigate('/elections')} className="mt-4">
-          Back to Elections
-        </Button>
-      </Layout>
-    );
-  }
   
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -131,12 +107,6 @@ const ElectionDetailsPage = () => {
     cancelled: 'Cancelled'
   };
   
-  // Prepare chart data
-  const chartData = candidates.map(candidate => ({
-    name: candidate.studentName.split(' ')[0], // Just use first name for brevity
-    votes: candidate.voteCount
-  }));
-  
   const formatDate = (dateString: string) => {
     try {
       return format(parseISO(dateString), 'MMMM d, yyyy');
@@ -150,18 +120,26 @@ const ElectionDetailsPage = () => {
       <div className="mb-6">
         <div className="flex justify-between items-start">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">{election.title}</h1>
+            <h1 className="text-2xl font-bold tracking-tight">{election?.title}</h1>
             <div className="flex items-center mt-2">
-              <Badge className={getStatusColor(election.status)}>
-                {statusText[election.status as keyof typeof statusText]}
-              </Badge>
+              {election && (
+                <Badge className={getStatusColor(election.status)}>
+                  {statusText[election.status as keyof typeof statusText]}
+                </Badge>
+              )}
               <div className="ml-4 flex items-center text-sm text-muted-foreground">
                 <Calendar className="mr-1 h-4 w-4" />
-                <span>{formatDate(election.startDate)} - {formatDate(election.endDate)}</span>
+                <span>
+                  {election && (
+                    <>
+                      {formatDate(election.startDate)} - {formatDate(election.endDate)}
+                    </>
+                  )}
+                </span>
               </div>
             </div>
           </div>
-          <UserRoleSwitcher onRoleChange={handleRoleChange} />
+          <UserRoleSwitcher />
         </div>
       </div>
       
@@ -217,7 +195,6 @@ const ElectionDetailsPage = () => {
             </CardContent>
           </Card>
           
-          {/* Results Chart (visible for ongoing and completed elections) */}
           {(election.status === 'active' || election.status === 'completed') && (
             <Card className="mt-6">
               <CardHeader>
@@ -326,7 +303,7 @@ const ElectionDetailsPage = () => {
                     <h3 className="font-semibold text-lg">{candidate.studentName}</h3>
                     <p className="text-sm text-muted-foreground">{candidate.position}</p>
                   </div>
-                  {candidate.voteCount > 0 && election.status === 'completed' && (
+                  {candidate.voteCount > 0 && election?.status === 'completed' && (
                     <Badge className="bg-green-100 text-green-800 border-green-100">
                       {candidate.voteCount} votes
                     </Badge>
@@ -342,7 +319,7 @@ const ElectionDetailsPage = () => {
                 
                 <p className="text-sm mb-4">{candidate.manifesto}</p>
                 
-                {election.status === 'active' && !votedFor && (
+                {election?.status === 'active' && !votedFor && hasPermission('create', 'vote') && (
                   <Button 
                     onClick={() => handleVote(candidate.id)}
                     disabled={loading}
@@ -352,7 +329,7 @@ const ElectionDetailsPage = () => {
                   </Button>
                 )}
                 
-                {election.status === 'active' && votedFor === candidate.id && (
+                {election?.status === 'active' && votedFor === candidate.id && (
                   <Button 
                     variant="outline"
                     className="w-full border-green-500 text-green-600 flex items-center justify-center"

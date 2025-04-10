@@ -5,13 +5,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import ElectionCard from '@/components/elections/ElectionCard';
-import { Election } from '@/models/election';
+import { Election, ElectionStatus } from '@/models/election';
 
 interface ElectionListProps {
   elections: Election[];
   loading: boolean;
   error: string | null;
-  filter?: 'upcoming' | 'active' | 'completed' | 'all';
+  filter?: ElectionStatus | 'all';
 }
 
 const ElectionList: React.FC<ElectionListProps> = ({ 
@@ -52,6 +52,7 @@ const ElectionList: React.FC<ElectionListProps> = ({
             {filter === 'active' && "There are no active elections at the moment."}
             {filter === 'upcoming' && "There are no upcoming elections scheduled."}
             {filter === 'completed' && "No completed elections to display."}
+            {filter === 'cancelled' && "No cancelled elections to display."}
             {filter === 'all' && "No elections are available."}
           </CardDescription>
         </CardHeader>
