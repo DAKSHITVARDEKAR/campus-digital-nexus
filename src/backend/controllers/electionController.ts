@@ -1,3 +1,4 @@
+
 import { Request, Response } from 'express';
 import { z } from 'zod';
 import multer from 'multer';
@@ -84,69 +85,114 @@ const createCandidateSchema = z.object({
   imageAlt: z.string().max(200).optional(), // Accessibility: Alt text for image
 });
 
+// Helper functions for accessibility
+const formatDate = (date: Date): string => {
+  return new Intl.DateTimeFormat('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(date);
+};
+
+const getStatusDescription = (status: string): string => {
+  switch (status) {
+    case 'UPCOMING':
+      return 'This election is scheduled but has not yet started.';
+    case 'ACTIVE':
+      return 'This election is currently in progress and accepting votes.';
+    case 'COMPLETED':
+      return 'This election has finished and results are available.';
+    case 'CANCELLED':
+      return 'This election has been cancelled.';
+    default:
+      return 'Unknown election status.';
+  }
+};
+
+const getCandidateStatusDescription = (status: string): string => {
+  switch (status) {
+    case 'PENDING':
+      return 'This application is awaiting review.';
+    case 'APPROVED':
+      return 'This candidate has been approved and will appear on the ballot.';
+    case 'REJECTED':
+      return 'This application has been rejected.';
+    default:
+      return 'Unknown application status.';
+  }
+};
+
 // Permission helpers
 const canManageElection = async (userId: string, electionId?: string) => {
-  // const user = await prisma.user.findUnique({
-  //   where: { id: userId },
-  //   select: { role: true }
-  // });
-  
-  // if (!user) return false;
-  
-  // // Admin can manage all elections
-  // if (user.role === 'ADMIN') return true;
-  
-  // // If checking a specific election
-  // if (electionId) {
-  //   // Creator of the election can manage it 
-  //   const election = await prisma.election.findUnique({
-  //     where: { id: electionId }
-  //   });
+  try {
+    // Get user from Firestore
+    const userDoc = await db.collection('users').doc(userId).get();
+    if (!userDoc.exists) return false;
     
-  //   return election?.createdBy === userId;
-  // }
-  
-  return false;
+    const userData = userDoc.data();
+    if (!userData) return false;
+    
+    // Admin can manage all elections
+    if (userData.role === 'ADMIN') return true;
+    
+    // If checking a specific election
+    if (electionId) {
+      // Creator of the election can manage it 
+      const electionDoc = await db.collection('elections').doc(electionId).get();
+      if (!electionDoc.exists) return false;
+      
+      const electionData = electionDoc.data();
+      return electionData?.createdBy === userId;
+    }
+    
+    return false;
+  } catch (error) {
+    console.error('Error checking election management permission:', error);
+    return false;
+  }
 };
 
 // Election Controllers
 export const getElections = async (req: Request, res: Response) => {
   try {
     // Handle optional status filter
-    // const statusFilter = req.query.status as ElectionStatus | undefined;
+    const statusFilter = req.query.status as ElectionStatus | undefined;
     
-    // const elections = await prisma.election.findMany({
-    //   where: statusFilter ? { status: statusFilter } : undefined,
-    //   include: {
-    //     _count: {
-    //       select: { candidates: true, votes: true }
-    //     }
-    //   },
-    //   orderBy: { startDate: 'asc' }
-    // });
+    let query = db.collection('elections');
     
-    // // Format the response for accessibility
-    // const formattedElections = elections.map(election => ({
-    //   id: election.id,
-    //   title: election.title,
-    //   description: election.description,
-    //   startDate: election.startDate.toISOString(),
-    //   endDate: election.endDate.toISOString(),
-    //   status: election.status,
-    //   candidateCount: election._count.candidates,
-    //   voteCount: election._count.votes,
-    //   createdAt: election.createdAt.toISOString(),
-    //   // Provide human-readable status for screen readers
-    //   statusDescription: getStatusDescription(election.status),
-    //   // Add date formatting for better accessibility
-    //   formattedStartDate: formatDate(election.startDate),
-    //   formattedEndDate: formatDate(election.endDate)
-    // }));
+    // Apply status filter if provided
+    if (statusFilter) {
+      query = query.where('status', '==', statusFilter);
+    }
+    
+    const snapshot = await query.orderBy('startDate', 'asc').get();
+    
+    const elections = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        title: data.title,
+        description: data.description,
+        startDate: data.startDate.toDate().toISOString(),
+        endDate: data.endDate.toDate().toISOString(),
+        status: data.status,
+        candidateCount: data.candidateCount || 0,
+        voteCount: data.voteCount || 0,
+        createdAt: data.createdAt.toDate().toISOString(),
+        // Provide human-readable status for screen readers
+        statusDescription: getStatusDescription(data.status),
+        // Add date formatting for better accessibility
+        formattedStartDate: formatDate(data.startDate.toDate()),
+        formattedEndDate: formatDate(data.endDate.toDate())
+      };
+    });
     
     return res.status(200).json({
       success: true,
-      count: 0,
-      data: []
+      count: elections.length,
+      data: elections
     });
   } catch (error) {
     console.error('Get elections error:', error);
@@ -162,61 +208,65 @@ export const getElection = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     
-    // const election = await prisma.election.findUnique({
-    //   where: { id },
-    //   include: {
-    //     _count: {
-    //       select: { candidates: true, votes: true }
-    //     },
-    //     candidates: {
-    //       where: { status: 'APPROVED' }, // Only include approved candidates
-    //       select: {
-    //         id: true,
-    //         name: true,
-    //         description: true,
-    //         imageUrl: true,
-    //         imageAlt: true, // Include alt text for images
-    //         platform: true,
-    //         voteCount: true
-    //       }
-    //     }
-    //   }
-    // });
+    const electionDoc = await db.collection('elections').doc(id).get();
     
-    // if (!election) {
-    //   return res.status(404).json({
-    //     success: false,
-    //     message: 'Election not found. It may have been deleted or the ID is incorrect.'
-    //   });
-    // }
+    if (!electionDoc.exists) {
+      return res.status(404).json({
+        success: false,
+        message: 'Election not found. It may have been deleted or the ID is incorrect.'
+      });
+    }
     
-    // // Format the response for accessibility
-    // const formattedElection = {
-    //   id: election.id,
-    //   title: election.title,
-    //   description: election.description,
-    //   startDate: election.startDate.toISOString(),
-    //   endDate: election.endDate.toISOString(),
-    //   status: election.status,
-    //   candidateCount: election._count.candidates,
-    //   voteCount: election._count.votes,
-    //   createdAt: election.createdAt.toISOString(),
-    //   // Provide human-readable status for screen readers
-    //   statusDescription: getStatusDescription(election.status),
-    //   // Add date formatting for better accessibility
-    //   formattedStartDate: formatDate(election.startDate),
-    //   formattedEndDate: formatDate(election.endDate),
-    //   // Include candidates
-    //   candidates: election.candidates.map(candidate => ({
-    //     ...candidate,
-    //     // If no alt text was provided, generate a basic one
-    //     imageAlt: candidate.imageAlt || `Profile picture of candidate ${candidate.name}`
-    //   }))
-    // };
+    const electionData = electionDoc.data();
+    if (!electionData) {
+      return res.status(404).json({
+        success: false,
+        message: 'Election data not found.'
+      });
+    }
+    
+    // Get approved candidates
+    const candidatesSnapshot = await db.collection('candidates')
+      .where('electionId', '==', id)
+      .where('status', '==', 'APPROVED')
+      .get();
+    
+    const candidates = candidatesSnapshot.docs.map(doc => {
+      const candidateData = doc.data();
+      return {
+        id: doc.id,
+        name: candidateData.name,
+        description: candidateData.description,
+        imageUrl: candidateData.imageUrl,
+        imageAlt: candidateData.imageAlt || `Profile picture of candidate ${candidateData.name}`,
+        platform: candidateData.platform,
+        voteCount: candidateData.voteCount || 0
+      };
+    });
+    
+    // Format the response for accessibility
+    const formattedElection = {
+      id: electionDoc.id,
+      title: electionData.title,
+      description: electionData.description,
+      startDate: electionData.startDate.toDate().toISOString(),
+      endDate: electionData.endDate.toDate().toISOString(),
+      status: electionData.status,
+      candidateCount: candidates.length,
+      voteCount: electionData.voteCount || 0,
+      createdAt: electionData.createdAt.toDate().toISOString(),
+      // Provide human-readable status for screen readers
+      statusDescription: getStatusDescription(electionData.status),
+      // Add date formatting for better accessibility
+      formattedStartDate: formatDate(electionData.startDate.toDate()),
+      formattedEndDate: formatDate(electionData.endDate.toDate()),
+      // Include candidates
+      candidates
+    };
     
     return res.status(200).json({
       success: true,
-      data: null
+      data: formattedElection
     });
   } catch (error) {
     console.error('Get election error:', error);
@@ -270,34 +320,50 @@ export const createElection = async (req: Request, res: Response) => {
     }
     
     // Check user permission
-    // const user = await prisma.user.findUnique({
-    //   where: { id: req.user.userId },
-    //   select: { role: true }
-    // });
+    const userDoc = await db.collection('users').doc(req.user.userId).get();
     
-    // if (!user || user.role !== 'ADMIN') {
-    //   return res.status(403).json({
-    //     success: false,
-    //     message: 'Only administrators can create elections. If you need to create an election, please contact an administrator.'
-    //   });
-    // }
+    if (!userDoc.exists) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found.'
+      });
+    }
     
-    // Create election
-    // const election = await prisma.election.create({
-    //   data: {
-    //     title,
-    //     description,
-    //     startDate: parsedStartDate,
-    //     endDate: parsedEndDate,
-    //     status: 'UPCOMING',
-    //     createdBy: req.user.userId
-    //   }
-    // });
+    const userData = userDoc.data();
+    
+    if (!userData || userData.role !== 'ADMIN') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only administrators can create elections. If you need to create an election, please contact an administrator.'
+      });
+    }
+    
+    // Create election in Firestore
+    const electionRef = db.collection('elections').doc();
+    await electionRef.set({
+      title,
+      description,
+      startDate: parsedStartDate,
+      endDate: parsedEndDate,
+      status: 'UPCOMING',
+      createdBy: req.user.userId,
+      candidateCount: 0,
+      voteCount: 0,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
     
     return res.status(201).json({
       success: true,
       message: 'Election created successfully. Candidates can now submit their applications.',
-      data: null
+      data: {
+        id: electionRef.id,
+        title,
+        description,
+        startDate: parsedStartDate.toISOString(),
+        endDate: parsedEndDate.toISOString(),
+        status: 'UPCOMING'
+      }
     });
   } catch (error) {
     console.error('Create election error:', error);
@@ -321,16 +387,22 @@ export const updateElection = async (req: Request, res: Response) => {
     const { id } = req.params;
     
     // Check if election exists
-    // const existingElection = await prisma.election.findUnique({
-    //   where: { id }
-    // });
+    const electionDoc = await db.collection('elections').doc(id).get();
     
-    // if (!existingElection) {
-    //   return res.status(404).json({
-    //     success: false,
-    //     message: 'Election not found. It may have been deleted or the ID is incorrect.'
-    //   });
-    // }
+    if (!electionDoc.exists) {
+      return res.status(404).json({
+        success: false,
+        message: 'Election not found. It may have been deleted or the ID is incorrect.'
+      });
+    }
+    
+    const existingElection = electionDoc.data();
+    if (!existingElection) {
+      return res.status(404).json({
+        success: false,
+        message: 'Election data not found.'
+      });
+    }
     
     // Check permission
     const hasPermission = await canManageElection(req.user.userId, id);
@@ -353,72 +425,80 @@ export const updateElection = async (req: Request, res: Response) => {
       });
     }
     
-    // const { title, description, startDate, endDate, status } = validatedData.data;
+    const { title, description, startDate, endDate, status } = validatedData.data;
     
-    // // Build update data
-    // const updateData: any = {};
+    // Build update data
+    const updateData: any = {
+      updatedAt: new Date()
+    };
     
-    // if (title) updateData.title = title;
-    // if (description) updateData.description = description;
+    if (title) updateData.title = title;
+    if (description) updateData.description = description;
     
-    // // Parse and validate dates if provided
-    // if (startDate) {
-    //   const parsedStartDate = new Date(startDate);
+    // Parse and validate dates if provided
+    if (startDate) {
+      const parsedStartDate = new Date(startDate);
       
-    //   if (existingElection.status !== 'UPCOMING') {
-    //     return res.status(400).json({
-    //       success: false,
-    //       message: 'Start date cannot be changed for elections that have already started or ended.'
-    //     });
-    //   }
+      if (existingElection.status !== 'UPCOMING') {
+        return res.status(400).json({
+          success: false,
+          message: 'Start date cannot be changed for elections that have already started or ended.'
+        });
+      }
       
-    //   updateData.startDate = parsedStartDate;
-    // }
+      updateData.startDate = parsedStartDate;
+    }
     
-    // if (endDate) {
-    //   const parsedEndDate = new Date(endDate);
+    if (endDate) {
+      const parsedEndDate = new Date(endDate);
       
-    //   if (existingElection.status === 'COMPLETED') {
-    //     return res.status(400).json({
-    //       success: false,
-    //       message: 'End date cannot be changed for elections that have already ended.'
-    //     });
-    //   }
+      if (existingElection.status === 'COMPLETED') {
+        return res.status(400).json({
+          success: false,
+          message: 'End date cannot be changed for elections that have already ended.'
+        });
+      }
       
-    //   updateData.endDate = parsedEndDate;
-    // }
+      updateData.endDate = parsedEndDate;
+    }
     
-    // // Validate date logic if both dates provided
-    // if (startDate && endDate && updateData.startDate >= updateData.endDate) {
-    //   return res.status(400).json({
-    //     success: false,
-    //     message: 'End date must be after start date. Please adjust your dates.'
-    //   });
-    // }
+    // Validate date logic if both dates provided
+    if (startDate && endDate) {
+      if (updateData.startDate >= updateData.endDate) {
+        return res.status(400).json({
+          success: false,
+          message: 'End date must be after start date. Please adjust your dates.'
+        });
+      }
+    }
     
-    // // Update status if provided
-    // if (status) {
-    //   // Perform status transition validation
-    //   if (existingElection.status === 'COMPLETED' && status !== 'COMPLETED') {
-    //     return res.status(400).json({
-    //       success: false,
-    //       message: 'Completed elections cannot be changed to another status.'
-    //     });
-    //   }
+    // Update status if provided
+    if (status) {
+      // Perform status transition validation
+      if (existingElection.status === 'COMPLETED' && status !== 'COMPLETED') {
+        return res.status(400).json({
+          success: false,
+          message: 'Completed elections cannot be changed to another status.'
+        });
+      }
       
-    //   updateData.status = status;
-    // }
+      updateData.status = status;
+    }
     
-    // // Update election
-    // const updatedElection = await prisma.election.update({
-    //   where: { id },
-    //   data: updateData
-    // });
+    // Update election in Firestore
+    await db.collection('elections').doc(id).update(updateData);
+    
+    // Get the updated election
+    const updatedElectionDoc = await db.collection('elections').doc(id).get();
+    const updatedElection = updatedElectionDoc.data();
     
     return res.status(200).json({
       success: true,
       message: 'Election updated successfully.',
-      data: null
+      data: {
+        id: updatedElectionDoc.id,
+        ...updatedElection
+      }
     });
   } catch (error) {
     console.error('Update election error:', error);
@@ -442,16 +522,14 @@ export const deleteElection = async (req: Request, res: Response) => {
     const { id } = req.params;
     
     // Check if election exists
-    // const existingElection = await prisma.election.findUnique({
-    //   where: { id }
-    // });
+    const electionDoc = await db.collection('elections').doc(id).get();
     
-    // if (!existingElection) {
-    //   return res.status(404).json({
-    //     success: false,
-    //     message: 'Election not found. It may have been deleted or the ID is incorrect.'
-    //   });
-    // }
+    if (!electionDoc.exists) {
+      return res.status(404).json({
+        success: false,
+        message: 'Election not found. It may have been deleted or the ID is incorrect.'
+      });
+    }
     
     // Check permission
     const hasPermission = await canManageElection(req.user.userId, id);
@@ -463,37 +541,46 @@ export const deleteElection = async (req: Request, res: Response) => {
       });
     }
     
-    // Check if election has votes - prevent deletion if votes exist
-    // const voteCount = await prisma.vote.count({
-    //   where: { electionId: id }
-    // });
+    // Check if election has votes
+    const votesSnapshot = await db.collection('votes')
+      .where('electionId', '==', id)
+      .limit(1)
+      .get();
     
-    // if (voteCount > 0) {
-    //   // Instead of deleting, cancel the election
-    //   await prisma.election.update({
-    //     where: { id },
-    //     data: { status: 'CANCELLED' }
-    //   });
+    if (!votesSnapshot.empty) {
+      // Instead of deleting, cancel the election
+      await db.collection('elections').doc(id).update({
+        status: 'CANCELLED',
+        updatedAt: new Date()
+      });
       
-    //   return res.status(200).json({
-    //     success: true,
-    //     message: 'This election has votes and cannot be deleted. It has been marked as cancelled instead.'
-    //   });
-    // }
+      return res.status(200).json({
+        success: true,
+        message: 'This election has votes and cannot be deleted. It has been marked as cancelled instead.'
+      });
+    }
     
-    // // Delete related candidates first
-    // await prisma.candidate.deleteMany({
-    //   where: { electionId: id }
-    // });
+    // Delete related candidates first
+    const candidatesSnapshot = await db.collection('candidates')
+      .where('electionId', '==', id)
+      .get();
     
-    // // Delete election
-    // await prisma.election.delete({
-    //   where: { id }
-    // });
+    // Create a batch for deletion
+    const batch = db.batch();
+    
+    candidatesSnapshot.docs.forEach(doc => {
+      batch.delete(doc.ref);
+    });
+    
+    // Delete election
+    batch.delete(db.collection('elections').doc(id));
+    
+    // Commit the batch
+    await batch.commit();
     
     return res.status(200).json({
       success: true,
-      message: 'Election deleted'
+      message: 'Election deleted successfully'
     });
   } catch (error) {
     console.error('Delete election error:', error);
@@ -511,65 +598,109 @@ export const getCandidates = async (req: Request, res: Response) => {
     const { electionId } = req.params;
     
     // Get user role for permission check
-    // const userRole = req.user?.role || 'STUDENT';
+    const userRole = req.user?.role || 'STUDENT';
     
     // Check if election exists
-    // const election = await prisma.election.findUnique({
-    //   where: { id: electionId }
-    // });
+    const electionDoc = await db.collection('elections').doc(electionId).get();
     
-    // if (!election) {
-    //   return res.status(404).json({
-    //     success: false,
-    //     message: 'Election not found. It may have been deleted or the ID is incorrect.'
-    //   });
-    // }
+    if (!electionDoc.exists) {
+      return res.status(404).json({
+        success: false,
+        message: 'Election not found. It may have been deleted or the ID is incorrect.'
+      });
+    }
     
-    // // Define filter based on user role
-    // const filter: any = { electionId };
+    // Define filter based on user role
+    let query = db.collection('candidates').where('electionId', '==', electionId);
     
-    // // Students only see approved candidates unless looking at own applications
-    // if (userRole === 'STUDENT' && req.user) {
-    //   filter.OR = [
-    //     { status: 'APPROVED' },
-    //     { studentId: req.user.userId }
-    //   ];
-    // }
-    // // Faculty and admins see all candidates
+    // Students only see approved candidates unless looking at own applications
+    if (userRole === 'STUDENT' && req.user) {
+      query = db.collection('candidates')
+        .where('electionId', '==', electionId)
+        .where('status', '==', 'APPROVED');
+      
+      // Get own applications separately (if any)
+      const ownCandidatesSnapshot = await db.collection('candidates')
+        .where('electionId', '==', electionId)
+        .where('studentId', '==', req.user.userId)
+        .get();
+      
+      const ownCandidates = ownCandidatesSnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          name: data.name,
+          description: data.description,
+          imageUrl: data.imageUrl,
+          imageAlt: data.imageAlt || `Profile picture of candidate ${data.name}`,
+          platform: data.platform,
+          status: data.status,
+          voteCount: data.status === 'APPROVED' ? data.voteCount : undefined,
+          submittedAt: data.submittedAt.toDate().toISOString(),
+          studentName: data.studentName,
+          department: data.department,
+          // Provide human-readable status for screen readers
+          statusDescription: getCandidateStatusDescription(data.status)
+        };
+      });
+      
+      // Get approved candidates from other students
+      const approvedCandidatesSnapshot = await query.get();
+      
+      const approvedCandidates = approvedCandidatesSnapshot.docs
+        .filter(doc => doc.data().studentId !== req.user?.userId)
+        .map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            name: data.name,
+            description: data.description,
+            imageUrl: data.imageUrl,
+            imageAlt: data.imageAlt || `Profile picture of candidate ${data.name}`,
+            platform: data.platform,
+            status: data.status,
+            voteCount: data.voteCount,
+            submittedAt: data.submittedAt.toDate().toISOString(),
+            studentName: data.studentName,
+            department: data.department,
+            statusDescription: getCandidateStatusDescription(data.status)
+          };
+        });
+      
+      const candidates = [...ownCandidates, ...approvedCandidates];
+      
+      return res.status(200).json({
+        success: true,
+        count: candidates.length,
+        data: candidates
+      });
+    }
     
-    // const candidates = await prisma.candidate.findMany({
-    //   where: filter,
-    //   include: {
-    //     student: {
-    //       select: {
-    //         name: true,
-    //         department: true
-    //       }
-    //     }
-    //   }
-    // });
+    // Faculty and admins see all candidates
+    const candidatesSnapshot = await query.get();
     
-    // // Format response for accessibility
-    // const formattedCandidates = candidates.map(candidate => ({
-    //   id: candidate.id,
-    //   name: candidate.name,
-    //   description: candidate.description,
-    //   imageUrl: candidate.imageUrl,
-    //   imageAlt: candidate.imageAlt || `Profile picture of candidate ${candidate.name}`,
-    //   platform: candidate.platform,
-    //   status: candidate.status,
-    //   voteCount: candidate.status === 'APPROVED' ? candidate.voteCount : undefined,
-    //   submittedAt: candidate.submittedAt.toISOString(),
-    //   studentName: candidate.student?.name,
-    //   department: candidate.student?.department,
-    //   // Provide human-readable status for screen readers
-    //   statusDescription: getCandidateStatusDescription(candidate.status)
-    // }));
+    const candidates = candidatesSnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        name: data.name,
+        description: data.description,
+        imageUrl: data.imageUrl,
+        imageAlt: data.imageAlt || `Profile picture of candidate ${data.name}`,
+        platform: data.platform,
+        status: data.status,
+        voteCount: data.status === 'APPROVED' ? data.voteCount : undefined,
+        submittedAt: data.submittedAt.toDate().toISOString(),
+        studentName: data.studentName,
+        department: data.department,
+        statusDescription: getCandidateStatusDescription(data.status)
+      };
+    });
     
     return res.status(200).json({
       success: true,
-      count: 0,
-      data: []
+      count: candidates.length,
+      data: candidates
     });
   } catch (error) {
     console.error('Get candidates error:', error);
@@ -618,74 +749,100 @@ export const createCandidate = async (req: Request, res: Response) => {
           });
         }
         
-        // const { electionId, name, description, platform, imageAlt } = validatedData.data;
+        const { electionId, name, description, platform, imageAlt } = validatedData.data;
         
         // Check if election exists and is accepting applications
-        // const election = await prisma.election.findUnique({
-        //   where: { id: electionId }
-        // });
+        const electionDoc = await db.collection('elections').doc(electionId).get();
         
-        // if (!election) {
-        //   // Remove uploaded file if election doesn't exist
-        //   if (req.file) {
-        //     fs.unlinkSync(req.file.path);
-        //   }
+        if (!electionDoc.exists) {
+          // Remove uploaded file if election doesn't exist
+          if (req.file) {
+            fs.unlinkSync(req.file.path);
+          }
           
-        //   return res.status(404).json({
-        //     success: false,
-        //     message: 'Election not found. It may have been deleted or the ID is incorrect.'
-        //   });
-        // }
+          return res.status(404).json({
+            success: false,
+            message: 'Election not found. It may have been deleted or the ID is incorrect.'
+          });
+        }
         
-        // if (election.status !== 'UPCOMING') {
-        //   // Remove uploaded file if election isn't upcoming
-        //   if (req.file) {
-        //     fs.unlinkSync(req.file.path);
-        //   }
+        const election = electionDoc.data();
+        
+        if (!election || election.status !== 'UPCOMING') {
+          // Remove uploaded file if election isn't upcoming
+          if (req.file) {
+            fs.unlinkSync(req.file.path);
+          }
           
-        //   return res.status(400).json({
-        //     success: false,
-        //     message: 'Candidate applications are only accepted for upcoming elections. This election has already started or ended.'
-        //   });
-        // }
+          return res.status(400).json({
+            success: false,
+            message: 'Candidate applications are only accepted for upcoming elections. This election has already started or ended.'
+          });
+        }
         
         // Check if user already has an application for this election
-        // const existingApplication = await prisma.candidate.findFirst({
-        //   where: {
-        //     electionId,
-        //     studentId: req.user.userId
-        //   }
-        // });
+        const existingApplicationSnapshot = await db.collection('candidates')
+          .where('electionId', '==', electionId)
+          .where('studentId', '==', req.user.userId)
+          .limit(1)
+          .get();
         
-        // if (existingApplication) {
-        //   // Remove uploaded file if application already exists
-        //   if (req.file) {
-        //     fs.unlinkSync(req.file.path);
-        //   }
+        if (!existingApplicationSnapshot.empty) {
+          // Remove uploaded file if application already exists
+          if (req.file) {
+            fs.unlinkSync(req.file.path);
+          }
           
-        //   return res.status(409).json({
-        //     success: false,
-        //     message: 'You have already submitted an application for this election. You can update your existing application instead.'
-        //   });
-        // }
+          return res.status(409).json({
+            success: false,
+            message: 'You have already submitted an application for this election. You can update your existing application instead.'
+          });
+        }
         
-        // Create candidate application
-        // const candidate = await prisma.candidate.create({
-        //   data: {
-        //     electionId,
-        //     studentId: req.user.userId,
-        //     name,
-        //     description,
-        //     platform,
-        //     imageUrl: req.file ? `/uploads/candidates/${req.file.filename}` : undefined,
-        //     imageAlt
-        //   }
-        // });
+        // Get user details
+        const userDoc = await db.collection('users').doc(req.user.userId).get();
+        if (!userDoc.exists) {
+          // Remove uploaded file if user doesn't exist
+          if (req.file) {
+            fs.unlinkSync(req.file.path);
+          }
+          
+          return res.status(404).json({
+            success: false,
+            message: 'User not found. Your account may have been deleted.'
+          });
+        }
+        
+        const userData = userDoc.data();
+        
+        // Create candidate application in Firestore
+        const candidateRef = db.collection('candidates').doc();
+        
+        await candidateRef.set({
+          electionId,
+          studentId: req.user.userId,
+          studentName: userData?.name || 'Unknown',
+          department: userData?.department || null,
+          name,
+          description: description || null,
+          platform,
+          imageUrl: req.file ? `/uploads/candidates/${req.file.filename}` : null,
+          imageAlt: imageAlt || `Profile picture of candidate ${name}`,
+          status: 'PENDING',
+          voteCount: 0,
+          submittedAt: new Date(),
+          updatedAt: new Date()
+        });
         
         return res.status(201).json({
           success: true,
           message: 'Your candidate application has been submitted successfully. It will be reviewed by administrators.',
-          data: null
+          data: {
+            id: candidateRef.id,
+            name,
+            status: 'PENDING',
+            submittedAt: new Date().toISOString()
+          }
         });
       } catch (error) {
         // Remove uploaded file if an error occurs
@@ -723,51 +880,78 @@ export const approveCandidate = async (req: Request, res: Response) => {
     const { id } = req.params;
     
     // Check if candidate exists
-    // const candidate = await prisma.candidate.findUnique({
-    //   where: { id },
-    //   include: {
-    //     election: true
-    //   }
-    // });
+    const candidateDoc = await db.collection('candidates').doc(id).get();
     
-    // if (!candidate) {
-    //   return res.status(404).json({
-    //     success: false,
-    //     message: 'Candidate application not found. It may have been deleted or the ID is incorrect.'
-    //   });
-    // }
+    if (!candidateDoc.exists) {
+      return res.status(404).json({
+        success: false,
+        message: 'Candidate application not found. It may have been deleted or the ID is incorrect.'
+      });
+    }
+    
+    const candidate = candidateDoc.data();
+    if (!candidate) {
+      return res.status(404).json({
+        success: false,
+        message: 'Candidate data not found.'
+      });
+    }
+    
+    // Get election to check status
+    const electionDoc = await db.collection('elections').doc(candidate.electionId).get();
+    if (!electionDoc.exists) {
+      return res.status(404).json({
+        success: false,
+        message: 'Election not found. It may have been deleted.'
+      });
+    }
+    
+    const election = electionDoc.data();
+    if (!election) {
+      return res.status(404).json({
+        success: false,
+        message: 'Election data not found.'
+      });
+    }
     
     // Check user permission
-    // const user = await prisma.user.findUnique({
-    //   where: { id: req.user.userId },
-    //   select: { role: true }
-    // });
+    const userDoc = await db.collection('users').doc(req.user.userId).get();
+    if (!userDoc.exists) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found. Your account may have been deleted.'
+      });
+    }
     
-    // if (!user || (user.role !== 'ADMIN' && user.role !== 'FACULTY')) {
-    //   return res.status(403).json({
-    //     success: false,
-    //     message: 'Only administrators and faculty members can approve candidate applications.'
-    //   });
-    // }
+    const userData = userDoc.data();
+    if (!userData || (userData.role !== 'ADMIN' && userData.role !== 'FACULTY')) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only administrators and faculty members can approve candidate applications.'
+      });
+    }
     
     // Check if election is still upcoming
-    // if (candidate.election.status !== 'UPCOMING') {
-    //   return res.status(400).json({
-    //     success: false,
-    //     message: 'Candidate applications can only be approved for upcoming elections. This election has already started or ended.'
-    //   });
-    // }
+    if (election.status !== 'UPCOMING') {
+      return res.status(400).json({
+        success: false,
+        message: 'Candidate applications can only be approved for upcoming elections. This election has already started or ended.'
+      });
+    }
     
     // Approve candidate
-    // const updatedCandidate = await prisma.candidate.update({
-    //   where: { id },
-    //   data: { status: 'APPROVED' }
-    // });
+    await db.collection('candidates').doc(id).update({
+      status: 'APPROVED',
+      updatedAt: new Date()
+    });
     
     return res.status(200).json({
       success: true,
       message: 'Candidate application approved successfully. The candidate will be included in the election.',
-      data: null
+      data: {
+        id,
+        status: 'APPROVED'
+      }
     });
   } catch (error) {
     console.error('Approve candidate error:', error);
@@ -791,51 +975,78 @@ export const rejectCandidate = async (req: Request, res: Response) => {
     const { id } = req.params;
     
     // Check if candidate exists
-    // const candidate = await prisma.candidate.findUnique({
-    //   where: { id },
-    //   include: {
-    //     election: true
-    //   }
-    // });
+    const candidateDoc = await db.collection('candidates').doc(id).get();
     
-    // if (!candidate) {
-    //   return res.status(404).json({
-    //     success: false,
-    //     message: 'Candidate application not found. It may have been deleted or the ID is incorrect.'
-    //   });
-    // }
+    if (!candidateDoc.exists) {
+      return res.status(404).json({
+        success: false,
+        message: 'Candidate application not found. It may have been deleted or the ID is incorrect.'
+      });
+    }
+    
+    const candidate = candidateDoc.data();
+    if (!candidate) {
+      return res.status(404).json({
+        success: false,
+        message: 'Candidate data not found.'
+      });
+    }
+    
+    // Get election to check status
+    const electionDoc = await db.collection('elections').doc(candidate.electionId).get();
+    if (!electionDoc.exists) {
+      return res.status(404).json({
+        success: false,
+        message: 'Election not found. It may have been deleted.'
+      });
+    }
+    
+    const election = electionDoc.data();
+    if (!election) {
+      return res.status(404).json({
+        success: false,
+        message: 'Election data not found.'
+      });
+    }
     
     // Check user permission
-    // const user = await prisma.user.findUnique({
-    //   where: { id: req.user.userId },
-    //   select: { role: true }
-    // });
+    const userDoc = await db.collection('users').doc(req.user.userId).get();
+    if (!userDoc.exists) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found. Your account may have been deleted.'
+      });
+    }
     
-    // if (!user || (user.role !== 'ADMIN' && user.role !== 'FACULTY')) {
-    //   return res.status(403).json({
-    //     success: false,
-    //     message: 'Only administrators and faculty members can reject candidate applications.'
-    //   });
-    // }
+    const userData = userDoc.data();
+    if (!userData || (userData.role !== 'ADMIN' && userData.role !== 'FACULTY')) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only administrators and faculty members can reject candidate applications.'
+      });
+    }
     
     // Check if election is still upcoming
-    // if (candidate.election.status !== 'UPCOMING') {
-    //   return res.status(400).json({
-    //     success: false,
-    //     message: 'Candidate applications can only be modified for upcoming elections. This election has already started or ended.'
-    //   });
-    // }
+    if (election.status !== 'UPCOMING') {
+      return res.status(400).json({
+        success: false,
+        message: 'Candidate applications can only be modified for upcoming elections. This election has already started or ended.'
+      });
+    }
     
     // Reject candidate
-    // const updatedCandidate = await prisma.candidate.update({
-    //   where: { id },
-    //   data: { status: 'REJECTED' }
-    // });
+    await db.collection('candidates').doc(id).update({
+      status: 'REJECTED',
+      updatedAt: new Date()
+    });
     
     return res.status(200).json({
       success: true,
       message: 'Candidate application rejected successfully.',
-      data: null
+      data: {
+        id,
+        status: 'REJECTED'
+      }
     });
   } catch (error) {
     console.error('Reject candidate error:', error);
@@ -857,75 +1068,245 @@ export const castVote = async (req: Request, res: Response) => {
       });
     }
     
-    // const { electionId, candidateId } = req.body;
+    const { electionId, candidateId } = req.body;
     
-    // if (!electionId || !candidateId) {
-    //   return res.status(400).json({
-    //     success: false,
-    //     message: 'Both election ID and candidate ID are required to cast a vote.'
-    //   });
-    // }
+    if (!electionId || !candidateId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Both election ID and candidate ID are required to cast a vote.'
+      });
+    }
     
-    // // Check if election exists and is active
-    // const election = await prisma.election.findUnique({
-    //   where: { id: electionId }
-    // });
+    // Check if election exists and is active
+    const electionDoc = await db.collection('elections').doc(electionId).get();
     
-    // if (!election) {
-    //   return res.status(404).json({
-    //     success: false,
-    //     message: 'Election not found. It may have been deleted or the ID is incorrect.'
-    //   });
-    // }
+    if (!electionDoc.exists) {
+      return res.status(404).json({
+        success: false,
+        message: 'Election not found. It may have been deleted or the ID is incorrect.'
+      });
+    }
     
-    // if (election.status !== 'ACTIVE') {
-    //   return res.status(400).json({
-    //     success: false,
-    //     message: `You cannot vote in this election because it is ${election.status.toLowerCase()}. Voting is only allowed for active elections.`
-    //   });
-    // }
+    const election = electionDoc.data();
+    if (!election) {
+      return res.status(404).json({
+        success: false,
+        message: 'Election data not found.'
+      });
+    }
     
-    // // Check if candidate exists and is approved
-    // const candidate = await prisma.candidate.findFirst({
-    //   where: {
-    //     id: candidateId,
-    //     electionId,
-    //     status: 'APPROVED'
-    //   }
-    // });
+    if (election.status !== 'ACTIVE') {
+      return res.status(400).json({
+        success: false,
+        message: `You cannot vote in this election because it is ${election.status.toLowerCase()}. Voting is only allowed for active elections.`
+      });
+    }
     
-    // if (!candidate) {
-    //   return res.status(404).json({
-    //     success: false,
-    //     message: 'Candidate not found or not approved for this election.'
-    //   });
-    // }
+    // Check if candidate exists and is approved
+    const candidateDoc = await db.collection('candidates').doc(candidateId).get();
     
-    // // Check if user has already voted in this election
-    // const existingVote = await prisma.vote.findFirst({
-    //   where: {
-    //     electionId,
-    //     voterId: req.user.userId
-    //   }
-    // });
+    if (!candidateDoc.exists) {
+      return res.status(404).json({
+        success: false,
+        message: 'Candidate not found or not approved for this election.'
+      });
+    }
     
-    // if (existingVote) {
-    //   return res.status(409).json({
-    //     success: false,
-    //     message: 'You have already voted in this election. Each voter may only vote once.'
-    //   });
-    // }
+    const candidate = candidateDoc.data();
+    if (!candidate || candidate.electionId !== electionId || candidate.status !== 'APPROVED') {
+      return res.status(404).json({
+        success: false,
+        message: 'Candidate not found or not approved for this election.'
+      });
+    }
     
-    // // Create vote and update candidate vote count
-    // const [vote, _] = await prisma.$transaction([
-    //   prisma.vote.create({
-    //     data: {
-    //       electionId,
-    //       candidateId,
-    //       voterId: req.user.userId
-    //     }
-    //   }),
-    //   prisma.candidate.update({
-    //     where: { id: candidateId },
-    //     data: {
-    //
+    // Check if user has already voted in this election
+    const votesSnapshot = await db.collection('votes')
+      .where('electionId', '==', electionId)
+      .where('voterId', '==', req.user.userId)
+      .limit(1)
+      .get();
+    
+    if (!votesSnapshot.empty) {
+      return res.status(409).json({
+        success: false,
+        message: 'You have already voted in this election. Each voter may only vote once.'
+      });
+    }
+    
+    // Create vote and update candidate vote count using a transaction
+    const voteRef = db.collection('votes').doc();
+    
+    await db.runTransaction(async (transaction) => {
+      // Create the vote
+      transaction.set(voteRef, {
+        electionId,
+        candidateId,
+        voterId: req.user.userId,
+        votedAt: new Date()
+      });
+      
+      // Increment candidate's vote count
+      transaction.update(db.collection('candidates').doc(candidateId), {
+        voteCount: (candidate.voteCount || 0) + 1
+      });
+      
+      // Increment election's vote count
+      transaction.update(db.collection('elections').doc(electionId), {
+        voteCount: (election.voteCount || 0) + 1
+      });
+    });
+    
+    return res.status(201).json({
+      success: true,
+      message: 'Your vote has been cast successfully.',
+      data: {
+        id: voteRef.id,
+        electionId,
+        candidateId,
+        votedAt: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    console.error('Cast vote error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'An error occurred while casting your vote. Please try again later.',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+};
+
+export const getElectionResults = async (req: Request, res: Response) => {
+  try {
+    const { electionId } = req.params;
+    
+    // Check if election exists
+    const electionDoc = await db.collection('elections').doc(electionId).get();
+    
+    if (!electionDoc.exists) {
+      return res.status(404).json({
+        success: false,
+        message: 'Election not found. It may have been deleted or the ID is incorrect.'
+      });
+    }
+    
+    const election = electionDoc.data();
+    if (!election) {
+      return res.status(404).json({
+        success: false,
+        message: 'Election data not found.'
+      });
+    }
+    
+    // Check if election is completed or active for results to be available
+    if (election.status !== 'COMPLETED' && election.status !== 'ACTIVE') {
+      return res.status(400).json({
+        success: false,
+        message: 'Election results are only available for active or completed elections.'
+      });
+    }
+    
+    // Get approved candidates with vote counts
+    const candidatesSnapshot = await db.collection('candidates')
+      .where('electionId', '==', electionId)
+      .where('status', '==', 'APPROVED')
+      .get();
+    
+    const candidates = candidatesSnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        name: data.name,
+        voteCount: data.voteCount || 0,
+        imageUrl: data.imageUrl,
+        imageAlt: data.imageAlt || `Profile picture of candidate ${data.name}`
+      };
+    });
+    
+    // Sort by vote count in descending order
+    candidates.sort((a, b) => b.voteCount - a.voteCount);
+    
+    return res.status(200).json({
+      success: true,
+      data: {
+        electionId,
+        electionTitle: election.title,
+        status: election.status,
+        totalVotes: election.voteCount || 0,
+        candidates
+      }
+    });
+  } catch (error) {
+    console.error('Get election results error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'An error occurred while retrieving election results. Please try again later.',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+};
+
+export const hasVoted = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required. Please log in to check voting status.'
+      });
+    }
+    
+    const { electionId } = req.params;
+    
+    // Check if election exists
+    const electionDoc = await db.collection('elections').doc(electionId).get();
+    
+    if (!electionDoc.exists) {
+      return res.status(404).json({
+        success: false,
+        message: 'Election not found. It may have been deleted or the ID is incorrect.'
+      });
+    }
+    
+    // Check if user has voted
+    const votesSnapshot = await db.collection('votes')
+      .where('electionId', '==', electionId)
+      .where('voterId', '==', req.user.userId)
+      .limit(1)
+      .get();
+    
+    const hasVoted = !votesSnapshot.empty;
+    
+    if (hasVoted) {
+      const voteData = votesSnapshot.docs[0].data();
+      
+      // Get the candidate that was voted for
+      const candidateDoc = await db.collection('candidates').doc(voteData.candidateId).get();
+      const candidateData = candidateDoc.exists ? candidateDoc.data() : null;
+      
+      return res.status(200).json({
+        success: true,
+        data: {
+          hasVoted: true,
+          votedAt: voteData.votedAt.toDate().toISOString(),
+          candidateId: voteData.candidateId,
+          candidateName: candidateData?.name || 'Unknown candidate'
+        }
+      });
+    } else {
+      return res.status(200).json({
+        success: true,
+        data: {
+          hasVoted: false
+        }
+      });
+    }
+  } catch (error) {
+    console.error('Check voted status error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'An error occurred while checking your voting status. Please try again later.',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+};

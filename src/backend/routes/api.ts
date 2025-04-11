@@ -11,9 +11,11 @@ const router = express.Router();
 router.post('/auth/register', (req, res) => {
   authController.register(req, res);
 });
+
 router.post('/auth/login', (req, res) => {
   authController.login(req, res);
 });
+
 router.get('/auth/profile', authenticateToken, (req, res) => {
   authController.getProfile(req, res);
 });
@@ -22,15 +24,19 @@ router.get('/auth/profile', authenticateToken, (req, res) => {
 router.get('/elections', (req, res) => {
   electionController.getElections(req, res);
 });
+
 router.get('/elections/:id', (req, res) => {
   electionController.getElection(req, res);
 });
+
 router.post('/elections', authenticateToken, checkRole(['ADMIN']), (req, res) => {
   electionController.createElection(req, res);
 });
+
 router.put('/elections/:id', authenticateToken, (req, res) => {
   electionController.updateElection(req, res);
 });
+
 router.delete('/elections/:id', authenticateToken, checkRole(['ADMIN']), (req, res) => {
   electionController.deleteElection(req, res);
 });
@@ -39,12 +45,15 @@ router.delete('/elections/:id', authenticateToken, checkRole(['ADMIN']), (req, r
 router.get('/elections/:electionId/candidates', (req, res) => {
   electionController.getCandidates(req, res);
 });
-router.post('/candidates', authenticateToken, upload.single('profileImage'), (req, res) => {
+
+router.post('/candidates', authenticateToken, (req, res) => {
   electionController.createCandidate(req, res);
 });
+
 router.patch('/candidates/:id/approve', authenticateToken, checkRole(['ADMIN', 'FACULTY']), (req, res) => {
   electionController.approveCandidate(req, res);
 });
+
 router.patch('/candidates/:id/reject', authenticateToken, checkRole(['ADMIN', 'FACULTY']), (req, res) => {
   electionController.rejectCandidate(req, res);
 });
@@ -53,9 +62,11 @@ router.patch('/candidates/:id/reject', authenticateToken, checkRole(['ADMIN', 'F
 router.post('/votes', authenticateToken, (req, res) => {
   electionController.castVote(req, res);
 });
+
 router.get('/elections/:electionId/results', (req, res) => {
   electionController.getElectionResults(req, res);
 });
+
 router.get('/elections/:electionId/has-voted', authenticateToken, (req, res) => {
   electionController.hasVoted(req, res);
 });
