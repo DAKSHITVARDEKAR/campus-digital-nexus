@@ -1,10 +1,12 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { AlertCircle } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { AlertCircle, Users, Calendar } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import ElectionCard from '@/components/elections/ElectionCard';
 import { Election, ElectionStatus } from '@/models/election';
 
@@ -29,15 +31,19 @@ const ElectionList: React.FC<ElectionListProps> = ({
   if (loading) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {[1, 2, 3].map((item) => (
-          <Card key={item} className="overflow-hidden">
+        {[1, 2, 3, 4, 5, 6].map((item) => (
+          <Card key={item} className="overflow-hidden h-full flex flex-col">
             <CardHeader className="pb-2">
-              <Skeleton className="h-6 w-3/4" />
-              <Skeleton className="h-4 w-20 mt-2" />
+              <div className="flex justify-between items-start">
+                <Skeleton className="h-6 w-3/4" />
+                <Skeleton className="h-5 w-16 rounded-full" />
+              </div>
             </CardHeader>
-            <CardContent className="pb-2">
+            <CardContent className="py-2 flex-grow">
               <Skeleton className="h-4 w-full mb-4" />
-              <div className="grid grid-cols-2 gap-2">
+              <Skeleton className="h-4 w-5/6 mb-4" />
+              
+              <div className="grid grid-cols-2 gap-2 mb-4">
                 <div>
                   <Skeleton className="h-3 w-20 mb-1" />
                   <Skeleton className="h-4 w-24" />
@@ -47,11 +53,15 @@ const ElectionList: React.FC<ElectionListProps> = ({
                   <Skeleton className="h-4 w-24" />
                 </div>
               </div>
-              <Skeleton className="h-4 w-2/3 mt-3" />
+              
+              <div className="flex items-center mt-4">
+                <Skeleton className="h-4 w-4 mr-2 rounded-full" />
+                <Skeleton className="h-4 w-28" />
+              </div>
             </CardContent>
-            <div className="p-4 pt-2">
+            <CardFooter className="pt-2">
               <Skeleton className="h-10 w-full rounded-md" />
-            </div>
+            </CardFooter>
           </Card>
         ))}
       </div>
