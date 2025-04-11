@@ -2,11 +2,10 @@
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
-import { PrismaClient } from '@prisma/client';
 import apiRoutes from './routes/api';
+import './config/firebase'; // Initialize Firebase
 
 const app = express();
-const prisma = new PrismaClient();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
@@ -47,29 +46,9 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
 
-// Connect to database and initialize
-async function initializeApp() {
-  try {
-    await prisma.$connect();
-    console.log('Connected to database successfully');
-    
-    // Setup database (for development)
-    if (process.env.NODE_ENV === 'development') {
-      // Add any initial setup here
-      console.log('Database initialized for development');
-    }
-  } catch (error) {
-    console.error('Failed to connect to database:', error);
-    process.exit(1);
-  }
-}
-
-initializeApp();
-
 // Graceful shutdown
 process.on('SIGINT', async () => {
-  await prisma.$disconnect();
-  console.log('Disconnected from database');
+  console.log('Shutting down server');
   process.exit(0);
 });
 

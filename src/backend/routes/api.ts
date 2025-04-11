@@ -3,6 +3,7 @@ import express from 'express';
 import { authenticateToken, checkRole } from '../middleware/auth';
 import * as authController from '../controllers/authController';
 import * as electionController from '../controllers/electionController';
+import { upload } from '../utils/fileUpload';
 
 const router = express.Router();
 
@@ -20,7 +21,7 @@ router.delete('/elections/:id', authenticateToken, checkRole(['ADMIN']), electio
 
 // Candidate routes
 router.get('/elections/:electionId/candidates', electionController.getCandidates);
-router.post('/candidates', authenticateToken, electionController.createCandidate);
+router.post('/candidates', authenticateToken, upload.single('profileImage'), electionController.createCandidate);
 router.patch('/candidates/:id/approve', authenticateToken, checkRole(['ADMIN', 'FACULTY']), electionController.approveCandidate);
 router.patch('/candidates/:id/reject', authenticateToken, checkRole(['ADMIN', 'FACULTY']), electionController.rejectCandidate);
 
@@ -28,5 +29,25 @@ router.patch('/candidates/:id/reject', authenticateToken, checkRole(['ADMIN', 'F
 router.post('/votes', authenticateToken, electionController.castVote);
 router.get('/elections/:electionId/results', electionController.getElectionResults);
 router.get('/elections/:electionId/has-voted', authenticateToken, electionController.hasVoted);
+
+// File upload test route
+router.post('/upload-test', authenticateToken, upload.single('file'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({
+      success: false,
+      message: 'No file uploaded'
+    });
+  }
+  
+  return res.status(200).json({
+    success: true,
+    message: 'File uploaded successfully',
+    data: {
+      filename: req.file.filename,
+      mimetype: req.file.mimetype,
+      size: req.file.size
+    }
+  });
+});
 
 export default router;
