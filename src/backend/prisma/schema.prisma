@@ -1,0 +1,103 @@
+
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User model with role-based access
+model User {
+  id             String    @id @default(uuid())
+  username       String    @unique
+  email          String    @unique
+  name           String
+  hashedPassword String
+  role           UserRole  @default(STUDENT)
+  department     String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  
+  // Relations
+  elections      Election[]
+  candidates     Candidate[]
+  votes          Vote[]
+}
+
+enum UserRole {
+  STUDENT
+  FACULTY
+  ADMIN
+}
+
+// Election system models
+model Election {
+  id          String         @id @default(uuid())
+  title       String
+  description String
+  startDate   DateTime
+  endDate     DateTime
+  status      ElectionStatus @default(UPCOMING)
+  createdBy   String
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  
+  // Relations
+  creator     User           @relation(fields: [createdBy], references: [id])
+  candidates  Candidate[]
+  votes       Vote[]
+}
+
+enum ElectionStatus {
+  UPCOMING
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+model Candidate {
+  id          String           @id @default(uuid())
+  electionId  String
+  studentId   String
+  name        String
+  description String?
+  imageUrl    String?
+  imageAlt    String?          // Accessibility: Alt text for candidate image
+  platform    String
+  status      CandidateStatus  @default(PENDING)
+  voteCount   Int              @default(0)
+  submittedAt DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  
+  // Relations
+  election    Election         @relation(fields: [electionId], references: [id])
+  student     User             @relation(fields: [studentId], references: [id])
+  votes       Vote[]
+}
+
+enum CandidateStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model Vote {
+  id          String   @id @default(uuid())
+  electionId  String
+  candidateId String
+  voterId     String
+  createdAt   DateTime @default(now())
+  
+  // Relations
+  election    Election  @relation(fields: [electionId], references: [id])
+  candidate   Candidate @relation(fields: [candidateId], references: [id])
+  voter       User      @relation(fields: [voterId], references: [id])
+  
+  // Constraints to ensure one vote per election per voter
+  @@unique([electionId, voterId])
+}
