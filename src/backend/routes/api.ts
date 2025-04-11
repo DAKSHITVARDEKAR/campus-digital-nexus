@@ -46,7 +46,7 @@ router.get('/elections/:electionId/candidates', (req, res) => {
   electionController.getCandidates(req, res);
 });
 
-router.post('/candidates', authenticateToken, (req, res) => {
+router.post('/candidates', authenticateToken, upload.single('image'), (req, res) => {
   electionController.createCandidate(req, res);
 });
 

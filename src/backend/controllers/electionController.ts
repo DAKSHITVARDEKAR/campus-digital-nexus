@@ -5,6 +5,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { db } from '../config/firebase';
+import { DocumentData, Query, CollectionReference, collection, query, where, orderBy, getDocs } from 'firebase/firestore';
 
 // Define enum types since we're not using Prisma anymore
 enum ElectionStatus {
@@ -160,14 +161,19 @@ export const getElections = async (req: Request, res: Response) => {
     // Handle optional status filter
     const statusFilter = req.query.status as ElectionStatus | undefined;
     
-    let query = db.collection('elections');
+    // Create a reference to the elections collection
+    const electionsRef = collection(db, 'elections');
     
-    // Apply status filter if provided
+    // Build the query based on filters
+    let electionsQuery;
     if (statusFilter) {
-      query = query.where('status', '==', statusFilter);
+      electionsQuery = query(electionsRef, where('status', '==', statusFilter), orderBy('startDate', 'asc'));
+    } else {
+      electionsQuery = query(electionsRef, orderBy('startDate', 'asc'));
     }
     
-    const snapshot = await query.orderBy('startDate', 'asc').get();
+    // Execute the query
+    const snapshot = await getDocs(electionsQuery);
     
     const elections = snapshot.docs.map(doc => {
       const data = doc.data();
