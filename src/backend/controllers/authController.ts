@@ -52,45 +52,54 @@ export const register = async (req: Request, res: Response) => {
     const hashedPassword = await bcrypt.hash(password, 10);
     
     // Create Firebase auth user
-    const userRecord = await auth.createUser({
-      email,
-      password,
-      displayName: name,
-    });
-    
-    // Set custom claims for role
-    await auth.setCustomUserClaims(userRecord.uid, { role });
-    
-    // Create user in Firestore
-    const userData = {
-      id: userRecord.uid,
-      username,
-      email,
-      name,
-      hashedPassword,
-      role,
-      department: department || null,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-    
-    await db.collection('users').doc(userRecord.uid).set(userData);
-    
-    // Return user data without sensitive information
-    const userResponse = {
-      id: userRecord.uid,
-      username,
-      email,
-      name,
-      role,
-      department: department || null
-    };
-    
-    return res.status(201).json({
-      success: true,
-      message: 'Account created successfully. You can now log in.',
-      data: userResponse
-    });
+    try {
+      const userRecord = await auth.createUser({
+        email,
+        password,
+        displayName: name,
+      });
+      
+      // Set custom claims for role
+      await auth.setCustomUserClaims(userRecord.uid, { role });
+      
+      // Create user in Firestore
+      const userData = {
+        id: userRecord.uid,
+        username,
+        email,
+        name,
+        hashedPassword,
+        role,
+        department: department || null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      
+      await db.collection('users').doc(userRecord.uid).set(userData);
+      
+      // Return user data without sensitive information
+      const userResponse = {
+        id: userRecord.uid,
+        username,
+        email,
+        name,
+        role,
+        department: department || null
+      };
+      
+      return res.status(201).json({
+        success: true,
+        message: 'Account created successfully. You can now log in.',
+        data: userResponse
+      });
+    } catch (error: any) {
+      // Handle Firebase Auth specific errors
+      return res.status(400).json({
+        success: false,
+        message: error.message || 'Error creating user',
+        error: error.code
+      });
+    }
   } catch (error) {
     console.error('Registration error:', error);
     return res.status(500).json({
