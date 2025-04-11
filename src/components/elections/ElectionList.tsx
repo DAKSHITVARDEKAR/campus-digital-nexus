@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Skeleton } from '@/components/ui/skeleton';
 import ElectionCard from '@/components/elections/ElectionCard';
 import { Election, ElectionStatus } from '@/models/election';
 
@@ -27,8 +28,32 @@ const ElectionList: React.FC<ElectionListProps> = ({
   
   if (loading) {
     return (
-      <div className="text-center py-12">
-        <p className="text-gray-500">Loading elections...</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {[1, 2, 3].map((item) => (
+          <Card key={item} className="overflow-hidden">
+            <CardHeader className="pb-2">
+              <Skeleton className="h-6 w-3/4" />
+              <Skeleton className="h-4 w-20 mt-2" />
+            </CardHeader>
+            <CardContent className="pb-2">
+              <Skeleton className="h-4 w-full mb-4" />
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Skeleton className="h-3 w-20 mb-1" />
+                  <Skeleton className="h-4 w-24" />
+                </div>
+                <div>
+                  <Skeleton className="h-3 w-20 mb-1" />
+                  <Skeleton className="h-4 w-24" />
+                </div>
+              </div>
+              <Skeleton className="h-4 w-2/3 mt-3" />
+            </CardContent>
+            <div className="p-4 pt-2">
+              <Skeleton className="h-10 w-full rounded-md" />
+            </div>
+          </Card>
+        ))}
       </div>
     );
   }

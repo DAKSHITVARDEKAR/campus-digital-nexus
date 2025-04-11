@@ -8,27 +8,27 @@ import { upload } from '../utils/fileUpload';
 const router = express.Router();
 
 // Auth routes
-router.post('/auth/register', authController.register);
-router.post('/auth/login', authController.login);
-router.get('/auth/profile', authenticateToken, authController.getProfile);
+router.post('/auth/register', (req, res) => authController.register(req, res));
+router.post('/auth/login', (req, res) => authController.login(req, res));
+router.get('/auth/profile', authenticateToken, (req, res) => authController.getProfile(req, res));
 
 // Election routes
-router.get('/elections', electionController.getElections);
-router.get('/elections/:id', electionController.getElection);
-router.post('/elections', authenticateToken, checkRole(['ADMIN']), electionController.createElection);
-router.put('/elections/:id', authenticateToken, electionController.updateElection);
-router.delete('/elections/:id', authenticateToken, checkRole(['ADMIN']), electionController.deleteElection);
+router.get('/elections', (req, res) => electionController.getElections(req, res));
+router.get('/elections/:id', (req, res) => electionController.getElection(req, res));
+router.post('/elections', authenticateToken, checkRole(['ADMIN']), (req, res) => electionController.createElection(req, res));
+router.put('/elections/:id', authenticateToken, (req, res) => electionController.updateElection(req, res));
+router.delete('/elections/:id', authenticateToken, checkRole(['ADMIN']), (req, res) => electionController.deleteElection(req, res));
 
 // Candidate routes
-router.get('/elections/:electionId/candidates', electionController.getCandidates);
-router.post('/candidates', authenticateToken, upload.single('profileImage'), electionController.createCandidate);
-router.patch('/candidates/:id/approve', authenticateToken, checkRole(['ADMIN', 'FACULTY']), electionController.approveCandidate);
-router.patch('/candidates/:id/reject', authenticateToken, checkRole(['ADMIN', 'FACULTY']), electionController.rejectCandidate);
+router.get('/elections/:electionId/candidates', (req, res) => electionController.getCandidates(req, res));
+router.post('/candidates', authenticateToken, upload.single('profileImage'), (req, res) => electionController.createCandidate(req, res));
+router.patch('/candidates/:id/approve', authenticateToken, checkRole(['ADMIN', 'FACULTY']), (req, res) => electionController.approveCandidate(req, res));
+router.patch('/candidates/:id/reject', authenticateToken, checkRole(['ADMIN', 'FACULTY']), (req, res) => electionController.rejectCandidate(req, res));
 
 // Vote routes
-router.post('/votes', authenticateToken, electionController.castVote);
-router.get('/elections/:electionId/results', electionController.getElectionResults);
-router.get('/elections/:electionId/has-voted', authenticateToken, electionController.hasVoted);
+router.post('/votes', authenticateToken, (req, res) => electionController.castVote(req, res));
+router.get('/elections/:electionId/results', (req, res) => electionController.getElectionResults(req, res));
+router.get('/elections/:electionId/has-voted', authenticateToken, (req, res) => electionController.hasVoted(req, res));
 
 // File upload test route
 router.post('/upload-test', authenticateToken, upload.single('file'), (req, res) => {
