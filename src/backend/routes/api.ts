@@ -10,7 +10,7 @@ const router = express.Router();
 
 // Auth routes
 router.post('/auth/register', asyncHandler(async (req, res) => {
-  // Void context - don't return the result
+  // Don't return the result, just await it
   await authController.register(req, res);
 }));
 
