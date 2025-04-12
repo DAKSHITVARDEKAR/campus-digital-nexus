@@ -80,7 +80,7 @@ router.post('/upload-test', authenticateToken, upload.single('file'), (req, res)
     });
   }
   
-  return res.status(200).json({
+  res.status(200).json({
     success: true,
     message: 'File uploaded successfully',
     data: {
