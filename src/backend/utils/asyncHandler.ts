@@ -7,10 +7,11 @@ import { Request, Response, NextFunction, RequestHandler } from 'express';
  */
 export const asyncHandler = (fn: (req: Request, res: Response, next?: NextFunction) => Promise<any>): RequestHandler => {
   return (req: Request, res: Response, next: NextFunction): void => {
-    // Express middleware must return void, so we void the promise result
-    void Promise.resolve(fn(req, res, next))
+    // Express middleware must return void
+    Promise.resolve(fn(req, res, next))
       .catch(next); // Pass any errors to Express error handling middleware
-    
-    // No return value - this ensures void type for the RequestHandler
+      
+    // The function itself returns void by not returning anything
+    // This matches Express's RequestHandler return type
   };
 };
