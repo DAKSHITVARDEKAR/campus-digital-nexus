@@ -11,80 +11,80 @@ const router = express.Router();
 // Auth routes
 router.post('/auth/register', asyncHandler(async (req, res) => {
   await authController.register(req, res);
-  return undefined; // Explicitly return undefined to satisfy void return type
+  // Don't return anything to satisfy void return type
 }));
 
 router.post('/auth/login', asyncHandler(async (req, res) => {
   await authController.login(req, res);
-  return undefined;
+  // Don't return anything
 }));
 
 router.get('/auth/profile', authenticateToken, asyncHandler(async (req, res) => {
   await authController.getProfile(req, res);
-  return undefined;
+  // Don't return anything
 }));
 
 // Election routes
 router.get('/elections', asyncHandler(async (req, res) => {
   await electionController.getElections(req, res);
-  return undefined;
+  // Don't return anything
 }));
 
 router.get('/elections/:id', asyncHandler(async (req, res) => {
   await electionController.getElection(req, res);
-  return undefined;
+  // Don't return anything
 }));
 
 router.post('/elections', authenticateToken, checkRole(['ADMIN']), asyncHandler(async (req, res) => {
   await electionController.createElection(req, res);
-  return undefined;
+  // Don't return anything
 }));
 
 router.put('/elections/:id', authenticateToken, asyncHandler(async (req, res) => {
   await electionController.updateElection(req, res);
-  return undefined;
+  // Don't return anything
 }));
 
 router.delete('/elections/:id', authenticateToken, checkRole(['ADMIN']), asyncHandler(async (req, res) => {
   await electionController.deleteElection(req, res);
-  return undefined;
+  // Don't return anything
 }));
 
 // Candidate routes
 router.get('/elections/:electionId/candidates', asyncHandler(async (req, res) => {
   await electionController.getCandidates(req, res);
-  return undefined;
+  // Don't return anything
 }));
 
 router.post('/candidates', authenticateToken, upload.single('image'), asyncHandler(async (req, res) => {
   await electionController.createCandidate(req, res);
-  return undefined;
+  // Don't return anything
 }));
 
 router.patch('/candidates/:id/approve', authenticateToken, checkRole(['ADMIN', 'FACULTY']), asyncHandler(async (req, res) => {
   await electionController.approveCandidate(req, res);
-  return undefined;
+  // Don't return anything
 }));
 
 router.patch('/candidates/:id/reject', authenticateToken, checkRole(['ADMIN', 'FACULTY']), asyncHandler(async (req, res) => {
   await electionController.rejectCandidate(req, res);
-  return undefined;
+  // Don't return anything
 }));
 
 // Vote routes
 router.post('/votes', authenticateToken, asyncHandler(async (req, res) => {
   await electionController.castVote(req, res);
-  return undefined;
+  // Don't return anything
 }));
 
 router.get('/elections/:electionId/results', asyncHandler(async (req, res) => {
   await electionController.getElectionResults(req, res);
-  return undefined;
+  // Don't return anything
 }));
 
 router.get('/elections/:electionId/has-voted', authenticateToken, asyncHandler(async (req, res) => {
   await electionController.hasVoted(req, res);
-  return undefined;
+  // Don't return anything
 }));
 
 // File upload test route
@@ -94,7 +94,7 @@ router.post('/upload-test', authenticateToken, upload.single('file'), asyncHandl
       success: false,
       message: 'No file uploaded'
     });
-    return undefined;
+    return; // Return void to break execution, but don't return any value
   }
   
   res.status(200).json({
@@ -106,7 +106,7 @@ router.post('/upload-test', authenticateToken, upload.single('file'), asyncHandl
       size: req.file.size
     }
   });
-  return undefined;
+  // Don't return anything
 }));
 
 export default router;
