@@ -7,8 +7,6 @@ import { Request, Response, NextFunction, RequestHandler } from 'express';
  */
 export const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => Promise<any>): RequestHandler => 
   (req: Request, res: Response, next: NextFunction): void => {
-    // Express middleware expects void, not a Promise
-    // We need to execute the function but never return the promise itself
     Promise.resolve(fn(req, res, next))
       .catch(next) // Pass any errors to Express error handling middleware
       .then(() => {}); // Explicitly ensure void return by not returning anything
