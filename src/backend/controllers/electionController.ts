@@ -5,7 +5,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { db } from '../config/firebase';
-import { DocumentData, Query } from 'firebase-admin/firestore';
+import { DocumentData, Query, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 
 // Define enum types since we're not using Prisma anymore
 enum ElectionStatus {
@@ -161,8 +161,8 @@ export const getElections = async (req: Request, res: Response) => {
     // Handle optional status filter
     const statusFilter = req.query.status as ElectionStatus | undefined;
     
-    // Create a query reference
-    let electionsQuery = db.collection('elections');
+    // Create a query reference - fix for TS2740 error
+    let electionsQuery: Query<DocumentData> = db.collection('elections');
     
     // Apply status filter if provided
     if (statusFilter) {
@@ -420,9 +420,11 @@ export const getCandidates = async (req: Request, res: Response) => {
   try {
     const { electionId } = req.params;
     
-    const snapshot = await db.collection('candidates')
-      .where('electionId', '==', electionId)
-      .get();
+    // This needs to be a Query type, not a CollectionReference
+    const query: Query<DocumentData> = db.collection('candidates')
+      .where('electionId', '==', electionId);
+      
+    const snapshot = await query.get();
     
     const candidates = snapshot.docs.map(doc => {
       const data = doc.data();
@@ -694,10 +696,11 @@ export const castVote = async (req: Request, res: Response) => {
     }
     
     // Check if user has already voted in this election
-    const votesSnapshot = await db.collection('votes')
+    const votesQuery: Query<DocumentData> = db.collection('votes')
       .where('electionId', '==', electionId)
-      .where('userId', '==', req.user?.userId)
-      .get();
+      .where('userId', '==', req.user?.userId);
+      
+    const votesSnapshot = await votesQuery.get();
     
     if (!votesSnapshot.empty) {
       res.status(400).json({
@@ -754,10 +757,11 @@ export const hasVoted = async (req: Request, res: Response) => {
       return;
     }
     
-    const votesSnapshot = await db.collection('votes')
+    const votesQuery: Query<DocumentData> = db.collection('votes')
       .where('electionId', '==', electionId)
-      .where('userId', '==', req.user.userId)
-      .get();
+      .where('userId', '==', req.user.userId);
+      
+    const votesSnapshot = await votesQuery.get();
     
     res.status(200).json({
       success: true,
@@ -801,10 +805,11 @@ export const getElectionResults = async (req: Request, res: Response) => {
     }
     
     // Get approved candidates for this election with their vote counts
-    const candidatesSnapshot = await db.collection('candidates')
+    const candidatesQuery: Query<DocumentData> = db.collection('candidates')
       .where('electionId', '==', electionId)
-      .where('status', '==', CandidateStatus.APPROVED)
-      .get();
+      .where('status', '==', CandidateStatus.APPROVED);
+      
+    const candidatesSnapshot = await candidatesQuery.get();
     
     const results = candidatesSnapshot.docs.map(doc => {
       const data = doc.data();
