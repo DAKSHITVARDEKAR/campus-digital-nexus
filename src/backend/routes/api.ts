@@ -10,81 +10,81 @@ const router = express.Router();
 
 // Auth routes
 router.post('/auth/register', asyncHandler(async (req, res) => {
+  // Call controller but don't return its result
   await authController.register(req, res);
-  // Don't return anything
 }));
 
 router.post('/auth/login', asyncHandler(async (req, res) => {
+  // Call controller but don't return its result
   await authController.login(req, res);
-  // Don't return anything
 }));
 
 router.get('/auth/profile', authenticateToken, asyncHandler(async (req, res) => {
+  // Call controller but don't return its result
   await authController.getProfile(req, res);
-  // Don't return anything
 }));
 
 // Election routes
 router.get('/elections', asyncHandler(async (req, res) => {
+  // Call controller but don't return its result
   await electionController.getElections(req, res);
-  // Don't return anything
 }));
 
 router.get('/elections/:id', asyncHandler(async (req, res) => {
+  // Call controller but don't return its result
   await electionController.getElection(req, res);
-  // Don't return anything
 }));
 
 router.post('/elections', authenticateToken, checkRole(['ADMIN']), asyncHandler(async (req, res) => {
+  // Call controller but don't return its result
   await electionController.createElection(req, res);
-  // Don't return anything
 }));
 
 router.put('/elections/:id', authenticateToken, asyncHandler(async (req, res) => {
+  // Call controller but don't return its result
   await electionController.updateElection(req, res);
-  // Don't return anything
 }));
 
 router.delete('/elections/:id', authenticateToken, checkRole(['ADMIN']), asyncHandler(async (req, res) => {
+  // Call controller but don't return its result
   await electionController.deleteElection(req, res);
-  // Don't return anything
 }));
 
 // Candidate routes
 router.get('/elections/:electionId/candidates', asyncHandler(async (req, res) => {
+  // Call controller but don't return its result
   await electionController.getCandidates(req, res);
-  // Don't return anything
 }));
 
 router.post('/candidates', authenticateToken, upload.single('image'), asyncHandler(async (req, res) => {
+  // Call controller but don't return its result
   await electionController.createCandidate(req, res);
-  // Don't return anything
 }));
 
 router.patch('/candidates/:id/approve', authenticateToken, checkRole(['ADMIN', 'FACULTY']), asyncHandler(async (req, res) => {
+  // Call controller but don't return its result
   await electionController.approveCandidate(req, res);
-  // Don't return anything
 }));
 
 router.patch('/candidates/:id/reject', authenticateToken, checkRole(['ADMIN', 'FACULTY']), asyncHandler(async (req, res) => {
+  // Call controller but don't return its result
   await electionController.rejectCandidate(req, res);
-  // Don't return anything
 }));
 
 // Vote routes
 router.post('/votes', authenticateToken, asyncHandler(async (req, res) => {
+  // Call controller but don't return its result
   await electionController.castVote(req, res);
-  // Don't return anything
 }));
 
 router.get('/elections/:electionId/results', asyncHandler(async (req, res) => {
+  // Call controller but don't return its result
   await electionController.getElectionResults(req, res);
-  // Don't return anything
 }));
 
 router.get('/elections/:electionId/has-voted', authenticateToken, asyncHandler(async (req, res) => {
+  // Call controller but don't return its result
   await electionController.hasVoted(req, res);
-  // Don't return anything
 }));
 
 // File upload test route
