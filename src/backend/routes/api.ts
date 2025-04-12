@@ -11,7 +11,7 @@ const router = express.Router();
 // Auth routes
 router.post('/auth/register', asyncHandler(async (req, res) => {
   await authController.register(req, res);
-  // Don't return anything to satisfy void return type
+  // Don't return anything - void return type required
 }));
 
 router.post('/auth/login', asyncHandler(async (req, res) => {
