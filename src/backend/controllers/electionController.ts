@@ -5,7 +5,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { db } from '../config/firebase';
-import { DocumentData, Query, CollectionReference, collection, query, where, orderBy, getDocs } from 'firebase/firestore';
+import { collection, query, where, orderBy, getDocs, DocumentData } from 'firebase/firestore';
 
 // Define enum types since we're not using Prisma anymore
 enum ElectionStatus {
@@ -176,7 +176,7 @@ export const getElections = async (req: Request, res: Response) => {
     const snapshot = await getDocs(electionsQuery);
     
     const elections = snapshot.docs.map(doc => {
-      const data = doc.data();
+      const data = doc.data() as DocumentData;
       return {
         id: doc.id,
         title: data.title,
