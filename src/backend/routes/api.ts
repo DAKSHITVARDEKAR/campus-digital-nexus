@@ -74,10 +74,11 @@ router.get('/elections/:electionId/has-voted', authenticateToken, (req, res) => 
 // File upload test route
 router.post('/upload-test', authenticateToken, upload.single('file'), (req, res) => {
   if (!req.file) {
-    return res.status(400).json({
+    res.status(400).json({
       success: false,
       message: 'No file uploaded'
     });
+    return;
   }
   
   res.status(200).json({

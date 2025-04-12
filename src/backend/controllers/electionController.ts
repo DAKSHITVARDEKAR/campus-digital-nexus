@@ -1,3 +1,4 @@
+
 import { Request, Response } from 'express';
 import { z } from 'zod';
 import multer from 'multer';
@@ -159,7 +160,7 @@ export const getElections = async (req: Request, res: Response) => {
     // Handle optional status filter
     const statusFilter = req.query.status as ElectionStatus | undefined;
     
-    // Get elections based on filters
+    // Create a query reference
     let electionsQuery = db.collection('elections');
     
     // Apply status filter if provided
@@ -193,14 +194,14 @@ export const getElections = async (req: Request, res: Response) => {
       };
     });
     
-    return res.status(200).json({
+    res.status(200).json({
       success: true,
       count: elections.length,
       data: elections
     });
   } catch (error) {
     console.error('Get elections error:', error);
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
       message: 'An error occurred while retrieving elections. Please try again later.',
       error: error instanceof Error ? error.message : 'Unknown error'
