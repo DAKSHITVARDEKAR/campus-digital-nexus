@@ -7,8 +7,9 @@ import { Request, Response, NextFunction, RequestHandler } from 'express';
  */
 export const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => Promise<any>): RequestHandler => {
   return (req: Request, res: Response, next: NextFunction): void => {
+    // Execute the function but discard its return value to ensure void return
     Promise.resolve(fn(req, res, next))
-      .catch(next)
-      .then(() => {});  // Ensure void return
+      .catch(next) // Pass any errors to Express error handling middleware
+      .then(() => {}); // Explicitly ensure void return by not returning anything
   };
 };
