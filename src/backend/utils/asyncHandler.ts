@@ -1,10 +1,11 @@
 
 import { Request, Response, NextFunction, RequestHandler } from 'express';
 
-// Utility to wrap async route handlers and ensure proper TypeScript typing
+// Modified utility to handle async Express route handlers
+// This properly handles the Promise return type from controller functions
 export const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => Promise<any>): RequestHandler => 
   (req: Request, res: Response, next: NextFunction): void => {
     Promise.resolve(fn(req, res, next))
-      .then(() => {}) // Consume the promise without returning
+      .then(() => {}) // Explicitly consume the promise result
       .catch(next);
   };
