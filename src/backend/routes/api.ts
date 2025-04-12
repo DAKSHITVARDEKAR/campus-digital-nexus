@@ -10,67 +10,66 @@ const router = express.Router();
 
 // Auth routes
 router.post('/auth/register', asyncHandler(async (req, res) => {
-  // Call controller without returning its result
-  authController.register(req, res);
+  await authController.register(req, res);
 }));
 
 router.post('/auth/login', asyncHandler(async (req, res) => {
-  authController.login(req, res);
+  await authController.login(req, res);
 }));
 
 router.get('/auth/profile', authenticateToken, asyncHandler(async (req, res) => {
-  authController.getProfile(req, res);
+  await authController.getProfile(req, res);
 }));
 
 // Election routes
 router.get('/elections', asyncHandler(async (req, res) => {
-  electionController.getElections(req, res);
+  await electionController.getElections(req, res);
 }));
 
 router.get('/elections/:id', asyncHandler(async (req, res) => {
-  electionController.getElection(req, res);
+  await electionController.getElection(req, res);
 }));
 
 router.post('/elections', authenticateToken, checkRole(['ADMIN']), asyncHandler(async (req, res) => {
-  electionController.createElection(req, res);
+  await electionController.createElection(req, res);
 }));
 
 router.put('/elections/:id', authenticateToken, asyncHandler(async (req, res) => {
-  electionController.updateElection(req, res);
+  await electionController.updateElection(req, res);
 }));
 
 router.delete('/elections/:id', authenticateToken, checkRole(['ADMIN']), asyncHandler(async (req, res) => {
-  electionController.deleteElection(req, res);
+  await electionController.deleteElection(req, res);
 }));
 
 // Candidate routes
 router.get('/elections/:electionId/candidates', asyncHandler(async (req, res) => {
-  electionController.getCandidates(req, res);
+  await electionController.getCandidates(req, res);
 }));
 
 router.post('/candidates', authenticateToken, upload.single('image'), asyncHandler(async (req, res) => {
-  electionController.createCandidate(req, res);
+  await electionController.createCandidate(req, res);
 }));
 
 router.patch('/candidates/:id/approve', authenticateToken, checkRole(['ADMIN', 'FACULTY']), asyncHandler(async (req, res) => {
-  electionController.approveCandidate(req, res);
+  await electionController.approveCandidate(req, res);
 }));
 
 router.patch('/candidates/:id/reject', authenticateToken, checkRole(['ADMIN', 'FACULTY']), asyncHandler(async (req, res) => {
-  electionController.rejectCandidate(req, res);
+  await electionController.rejectCandidate(req, res);
 }));
 
 // Vote routes
 router.post('/votes', authenticateToken, asyncHandler(async (req, res) => {
-  electionController.castVote(req, res);
+  await electionController.castVote(req, res);
 }));
 
 router.get('/elections/:electionId/results', asyncHandler(async (req, res) => {
-  electionController.getElectionResults(req, res);
+  await electionController.getElectionResults(req, res);
 }));
 
 router.get('/elections/:electionId/has-voted', authenticateToken, asyncHandler(async (req, res) => {
-  electionController.hasVoted(req, res);
+  await electionController.hasVoted(req, res);
 }));
 
 // File upload test route
