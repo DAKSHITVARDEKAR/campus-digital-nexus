@@ -1,11 +1,12 @@
-
 import multer from 'multer';
 import path from 'path';
-import { storage } from '../config/firebase';
+import { storage, BUCKET_ID } from '../config/appwrite';
 import { Request } from 'express';
 import { v4 as uuidv4 } from 'uuid';
-
-// Configure local storage for multer (temporary storage before Firebase upload)
+import fs from 'fs';
+import { ID } from 'node-appwrite';
+import { InputFile } from 'node-appwrite/file';
+// Configure local storage for multer (temporary storage before Appwrite upload)
 const localStorage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, path.join(__dirname, '../uploads'));
@@ -40,43 +41,55 @@ export const upload = multer({
   }
 });
 
-// Upload file to Firebase Storage
-export const uploadToFirebase = async (localFilePath: string, destinationPath: string, metadata: any = {}) => {
+// Upload file to Appwrite Storage
+export const uploadToAppwrite = async (localFilePath: string, destinationPath: string, metadata: any = {}) => {
   try {
-    // Upload file to Firebase Storage
-    const bucket = storage.bucket();
-    const destination = `${destinationPath}/${uuidv4()}${path.extname(localFilePath)}`;
+    // Read the file as a buffer
+    const fileBuffer = fs.readFileSync(localFilePath);
     
-    // Upload with metadata
-    await bucket.upload(localFilePath, {
-      destination,
-      metadata: {
-        contentType: metadata.mimetype || 'application/octet-stream',
-        metadata: {
-          originalName: metadata.originalname || path.basename(localFilePath),
-          description: metadata.description || '',
-          altText: metadata.altText || '',
-        }
-      }
-    });
+    // Create a unique filename
+    const uniqueFilename = `${destinationPath}/${uuidv4()}${path.extname(localFilePath)}`;
     
-    // Get public URL
-    const file = bucket.file(destination);
-    const [url] = await file.getSignedUrl({
-      action: 'read',
-      expires: '03-01-2500' // Far future expiration
-    });
+    // Upload file to Appwrite Storage using InputFile
+    const fileId = ID.unique();
+    const file = await storage.createFile(
+      BUCKET_ID,
+      fileId,
+      InputFile.fromBuffer(
+        fileBuffer,
+        metadata.originalname || path.basename(localFilePath)
+      )
+    );
+    
+    // Get public URL - need to await the promise
+    const fileUrlPromise = storage.getFileView(BUCKET_ID, fileId);
+    const fileUrl = await fileUrlPromise;
+    
+    // Clean up local file if needed
+    try {
+      fs.unlinkSync(localFilePath);
+    } catch (err) {
+      console.warn('Could not delete temporary file:', err);
+    }
     
     return { 
-      url, 
-      path: destination,
-      filename: path.basename(destination),
-      contentType: metadata.mimetype,
+      id: fileId,
+      url: fileUrl, 
+      path: fileId,
+      filename: file.name,
+      contentType: metadata.mimetype || 'application/octet-stream',
       description: metadata.description || '',
       altText: metadata.altText || ''
     };
   } catch (error) {
-    console.error('Error uploading file to Firebase:', error);
+    // Clean up local file in case of error
+    try {
+      fs.unlinkSync(localFilePath);
+    } catch (err) {
+      console.warn('Could not delete temporary file:', err);
+    }
+    
+    console.error('Error uploading file to Appwrite:', error);
     throw error;
   }
 };

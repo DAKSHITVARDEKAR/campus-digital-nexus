@@ -1,150 +1,112 @@
-
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { auth, db } from '../config/firebase';
+import { account, databases, DATABASE_ID, USERS_COLLECTION_ID } from '../config/appwrite';
+import { Query } from 'node-appwrite';
 
-// Extend Express Request type to include user
-declare global {
-  namespace Express {
-    interface Request {
-      user?: {
-        userId: string;
-        role: string;
-      };
-    }
+// Extended request interface with user property
+export interface AuthRequest extends Request {
+  user?: {
+    id: string;
+    email: string;
+    username?: string;
+    role: string;
   }
 }
 
-// Verify JWT token and attach user to request
-export const authenticateToken = async (
-  req: Request, 
-  res: Response, 
-  next: NextFunction
-) => {
-  try {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
-    
-    if (!token) {
-      return res.status(401).json({ 
-        success: false,
-        message: 'Authentication required. Please log in to access this resource.',
-        error: 'No authentication token provided'
-      });
-    }
-    
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as any;
-    
-    // Verify user exists in Firebase
+export const protect = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  let token;
+  
+  // Check if token exists in Authorization header
+  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
     try {
-      await auth.getUser(decoded.userId);
+      // Get token from header
+      token = req.headers.authorization.split(' ')[1];
       
-      // Attach user info to request
+      // Verify token
+      const decoded = jwt.verify(
+        token, 
+        process.env.JWT_SECRET || 'your-secret-key'
+      ) as any;
+      
+      // Add user to request
       req.user = {
-        userId: decoded.userId,
+        id: decoded.id,
+        email: decoded.email,
+        username: decoded.username,
         role: decoded.role
       };
       
       next();
     } catch (error) {
-      return res.status(403).json({ 
+      console.error('Authentication error:', error);
+      res.status(401).json({
         success: false,
-        message: 'User not found or deleted. Please log in again.',
-        error: 'Invalid user'
+        message: 'Not authorized, token failed'
       });
     }
-  } catch (error) {
-    console.error('Authentication error:', error);
-    return res.status(403).json({ 
-      success: false,
-      message: 'Your login session is invalid or has expired. Please log in again.',
-      error: 'Invalid authentication token'
-    });
+  } else {
+    // Try Appwrite session if no token is provided
+    try {
+      const session = await account.getSession('current');
+      
+      // If session exists, get the user details from Appwrite
+      if (session) {
+        const appwriteUser = await account.get();
+        
+        // Get user profile from database
+        const userQuery = await databases.listDocuments(
+          DATABASE_ID,
+          USERS_COLLECTION_ID,
+          [
+            Query.equal('userId', appwriteUser.$id)
+          ]
+        );
+        
+        if (userQuery.total > 0) {
+          const userProfile = userQuery.documents[0];
+          req.user = {
+            id: appwriteUser.$id,
+            email: appwriteUser.email,
+            username: userProfile.username,
+            role: userProfile.role
+          };
+          
+          next();
+          return;
+        }
+      }
+      
+      // No valid session or profile found
+      res.status(401).json({
+        success: false,
+        message: 'Not authorized, please log in'
+      });
+    } catch (error) {
+      console.error('Authentication error:', error);
+      res.status(401).json({
+        success: false,
+        message: 'Not authorized, please log in'
+      });
+    }
   }
 };
 
-// Check if user has required role
-export const checkRole = (roles: string[]) => {
-  return async (req: Request, res: Response, next: NextFunction) => {
+export const authorize = (...roles: string[]) => {
+  return (req: AuthRequest, res: Response, next: NextFunction) => {
     if (!req.user) {
       return res.status(401).json({
         success: false,
-        message: 'Authentication required. Please log in to access this resource.',
-        error: 'User not authenticated'
+        message: 'Not authenticated'
       });
     }
     
-    try {
-      // Get user from Firestore to check current role
-      const userDoc = await db.collection('users').doc(req.user.userId).get();
-      
-      if (!userDoc.exists) {
-        return res.status(404).json({
-          success: false,
-          message: 'User not found. Your account may have been deleted.',
-          error: 'User not found'
-        });
-      }
-      
-      const userData = userDoc.data();
-      const userRole = userData?.role;
-      
-      if (!roles.includes(userRole)) {
-        return res.status(403).json({
-          success: false,
-          message: 'You do not have permission to access this resource. Please contact an administrator if you believe this is an error.',
-          error: `Required role: ${roles.join(' or ')}. Your role: ${userRole}`
-        });
-      }
-      
-      // Update req.user with the latest role from Firestore
-      req.user.role = userRole;
-      
-      next();
-    } catch (error) {
-      console.error('Role check error:', error);
-      return res.status(500).json({
+    if (!roles.includes(req.user.role)) {
+      return res.status(403).json({
         success: false,
-        message: 'An error occurred while checking permissions.',
-        error: error instanceof Error ? error.message : 'Unknown error'
+        message: `User role ${req.user.role} is not authorized to access this resource`
       });
     }
-  };
-};
-
-// Check if user has specific permission
-export const checkPermission = (
-  permissionCheck: (userId: string, resourceId?: string) => Promise<boolean>
-) => {
-  return async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      if (!req.user) {
-        return res.status(401).json({
-          success: false,
-          message: 'Authentication required. Please log in to access this resource.',
-          error: 'User not authenticated'
-        });
-      }
-      
-      const resourceId = req.params.id;
-      const hasPermission = await permissionCheck(req.user.userId, resourceId);
-      
-      if (!hasPermission) {
-        return res.status(403).json({
-          success: false,
-          message: 'You do not have permission to perform this action on this resource.',
-          error: 'Permission denied'
-        });
-      }
-      
-      next();
-    } catch (error) {
-      console.error('Permission check error:', error);
-      return res.status(500).json({
-        success: false,
-        message: 'An error occurred while checking permissions.',
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
-    }
+    
+    next();
   };
 };

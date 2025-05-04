@@ -1,4 +1,3 @@
-
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import './App.css';
 import AdminDashboard from './pages/AdminDashboard';
@@ -25,33 +24,41 @@ import BookFacilityPage from './pages/BookFacilityPage';
 import MyBookingsPage from './pages/MyBookingsPage';
 import AchievementsPage from './pages/AchievementsPage';
 import { AuthProvider } from './contexts/AuthContext';
+import ProtectedRoute from './components/layout/ProtectedRoute';
 
 function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
         <Routes>
+          {/* Public Routes */}
           <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="/admin" element={<AdminDashboard />} />
-          <Route path="/student" element={<StudentDashboard />} />
-          <Route path="/faculty" element={<FacultyDashboard />} />
           <Route path="/complaints" element={<Complaints />} />
           <Route path="/cheating-records" element={<CheatingRecordsPage />} />
-          <Route path="/board-review" element={<BoardReviewPage />} />
-          <Route path="/applications" element={<Applications />} />
           <Route path="/elections" element={<Elections />} />
           <Route path="/elections/:electionId" element={<ElectionDetailsPage />} />
           <Route path="/budget" element={<Budget />} />
-          <Route path="/profile" element={<ProfilePage />} />
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/facilities" element={<Facilities />} />
-          <Route path="/book-facility/:facilityId?" element={<BookFacilityPage />} />
-          <Route path="/my-bookings" element={<MyBookingsPage />} />
           <Route path="/achievements" element={<AchievementsPage />} />
+
+          {/* Protected Routes */}
+          <Route element={<ProtectedRoute />}>
+            <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/student" element={<StudentDashboard />} />
+            <Route path="/faculty" element={<FacultyDashboard />} />
+            <Route path="/board-review" element={<BoardReviewPage />} />
+            <Route path="/applications" element={<Applications />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/notifications" element={<NotificationsPage />} />
+            <Route path="/book-facility/:facilityId?" element={<BookFacilityPage />} />
+            <Route path="/my-bookings" element={<MyBookingsPage />} />
+          </Route>
+
+          {/* Not Found Route */}
           <Route path="*" element={<NotFound />} />
         </Routes>
         <Toaster />

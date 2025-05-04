@@ -1,13 +1,13 @@
-
 import { Request, Response } from 'express';
 import { z } from 'zod';
 import multer from 'multer';
 import path from 'path';
-import fs from 'fs';
-import { db } from '../config/firebase';
-import { DocumentData, Query, QueryDocumentSnapshot } from 'firebase-admin/firestore';
+import { databases, storage, DATABASE_ID, ELECTIONS_COLLECTION_ID, CANDIDATES_COLLECTION_ID, VOTES_COLLECTION_ID, BUCKET_ID } from '../config/appwrite';
+import { ID, Query } from 'node-appwrite';
+import { InputFile } from 'node-appwrite/file';
+import { AuthRequest } from '../middleware/auth';
 
-// Define enum types since we're not using Prisma anymore
+// Define enum types
 enum ElectionStatus {
   UPCOMING = 'UPCOMING',
   ACTIVE = 'ACTIVE',
@@ -22,30 +22,14 @@ enum CandidateStatus {
 }
 
 // Setup file upload for candidate images
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadDir = path.join(__dirname, '../uploads/candidates');
-    // Create directory if it doesn't exist
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const ext = path.extname(file.originalname);
-    cb(null, `candidate-${uniqueSuffix}${ext}`);
-  }
-});
-
-export const upload = multer({
-  storage,
+const upload = multer({
+  storage: multer.memoryStorage(), // Use memory storage for Appwrite
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
   fileFilter: (req, file, cb) => {
     const allowedTypes = /jpeg|jpg|png|gif/;
     const ext = allowedTypes.test(path.extname(file.originalname).toLowerCase());
     const mimetype = allowedTypes.test(file.mimetype);
-    
+
     if (ext && mimetype) {
       return cb(null, true);
     } else {
@@ -79,7 +63,7 @@ const updateElectionSchema = z.object({
 });
 
 const createCandidateSchema = z.object({
-  electionId: z.string().uuid(),
+  electionId: z.string(),
   name: z.string().min(2).max(100),
   description: z.string().max(500).optional(),
   platform: z.string().min(10).max(1000),
@@ -128,26 +112,29 @@ const getCandidateStatusDescription = (status: string): string => {
 // Permission helpers
 const canManageElection = async (userId: string, electionId?: string) => {
   try {
-    // Get user from Firestore
-    const userDoc = await db.collection('users').doc(userId).get();
-    if (!userDoc.exists) return false;
-    
-    const userData = userDoc.data();
-    if (!userData) return false;
-    
+    // Get user role from Appwrite
+    // You'd typically store user roles in a separate users collection or use Appwrite Teams
+    const userDoc = await databases.getDocument(
+      DATABASE_ID,
+      'users', // Replace with your users collection ID
+      userId
+    );
+
     // Admin can manage all elections
-    if (userData.role === 'ADMIN') return true;
-    
+    if (userDoc.role === 'ADMIN') return true;
+
     // If checking a specific election
     if (electionId) {
-      // Creator of the election can manage it 
-      const electionDoc = await db.collection('elections').doc(electionId).get();
-      if (!electionDoc.exists) return false;
-      
-      const electionData = electionDoc.data();
-      return electionData?.createdBy === userId;
+      // Creator of the election can manage it
+      const election = await databases.getDocument(
+        DATABASE_ID,
+        ELECTIONS_COLLECTION_ID,
+        electionId
+      );
+
+      return election.createdBy === userId;
     }
-    
+
     return false;
   } catch (error) {
     console.error('Error checking election management permission:', error);
@@ -160,41 +147,41 @@ export const getElections = async (req: Request, res: Response) => {
   try {
     // Handle optional status filter
     const statusFilter = req.query.status as ElectionStatus | undefined;
-    
-    // Create a query reference - fix for TS2740 error
-    let electionsQuery: Query<DocumentData> = db.collection('elections');
-    
-    // Apply status filter if provided
+
+    // Create query parameters if status filter is provided
+    let queries = [];
     if (statusFilter) {
-      electionsQuery = electionsQuery.where('status', '==', statusFilter);
+      queries.push(Query.equal('status', statusFilter));
     }
-    
-    // Apply ordering
-    electionsQuery = electionsQuery.orderBy('startDate', 'asc');
-    
-    // Execute the query
-    const snapshot = await electionsQuery.get();
-    
-    const elections = snapshot.docs.map(doc => {
-      const data = doc.data();
+
+    // Get elections with ordering
+    queries.push(Query.orderAsc('startDate'));
+
+    const response = await databases.listDocuments(
+      DATABASE_ID,
+      ELECTIONS_COLLECTION_ID,
+      queries
+    );
+
+    const elections = response.documents.map(doc => {
       return {
-        id: doc.id,
-        title: data.title,
-        description: data.description,
-        startDate: data.startDate.toDate().toISOString(),
-        endDate: data.endDate.toDate().toISOString(),
-        status: data.status,
-        candidateCount: data.candidateCount || 0,
-        voteCount: data.voteCount || 0,
-        createdAt: data.createdAt.toDate().toISOString(),
+        id: doc.$id,
+        title: doc.title,
+        description: doc.description,
+        startDate: doc.startDate,
+        endDate: doc.endDate,
+        status: doc.status,
+        candidateCount: doc.candidateCount || 0,
+        voteCount: doc.voteCount || 0,
+        createdAt: doc.createdAt,
         // Provide human-readable status for screen readers
-        statusDescription: getStatusDescription(data.status),
+        statusDescription: getStatusDescription(doc.status),
         // Add date formatting for better accessibility
-        formattedStartDate: formatDate(data.startDate.toDate()),
-        formattedEndDate: formatDate(data.endDate.toDate())
+        formattedStartDate: formatDate(new Date(doc.startDate)),
+        formattedEndDate: formatDate(new Date(doc.endDate))
       };
     });
-    
+
     res.status(200).json({
       success: true,
       count: elections.length,
@@ -214,38 +201,42 @@ export const getElections = async (req: Request, res: Response) => {
 export const getElection = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    
-    const electionDoc = await db.collection('elections').doc(id).get();
-    
-    if (!electionDoc.exists) {
+
+    const doc = await databases.getDocument(
+      DATABASE_ID,
+      ELECTIONS_COLLECTION_ID,
+      id
+    );
+
+    res.status(200).json({
+      success: true,
+      data: {
+        id: doc.$id,
+        title: doc.title,
+        description: doc.description,
+        startDate: doc.startDate,
+        endDate: doc.endDate,
+        status: doc.status,
+        candidateCount: doc.candidateCount || 0,
+        voteCount: doc.voteCount || 0,
+        createdAt: doc.createdAt,
+        statusDescription: getStatusDescription(doc.status),
+        formattedStartDate: formatDate(new Date(doc.startDate)),
+        formattedEndDate: formatDate(new Date(doc.endDate))
+      }
+    });
+  } catch (error) {
+    console.error('Get election error:', error);
+
+    // Check if document doesn't exist
+    if (error.code === 404) {
       res.status(404).json({
         success: false,
         message: 'Election not found',
       });
       return;
     }
-    
-    const data = electionDoc.data();
-    
-    res.status(200).json({
-      success: true,
-      data: {
-        id: electionDoc.id,
-        title: data?.title,
-        description: data?.description,
-        startDate: data?.startDate.toDate().toISOString(),
-        endDate: data?.endDate.toDate().toISOString(),
-        status: data?.status,
-        candidateCount: data?.candidateCount || 0,
-        voteCount: data?.voteCount || 0,
-        createdAt: data?.createdAt.toDate().toISOString(),
-        statusDescription: getStatusDescription(data?.status),
-        formattedStartDate: formatDate(data?.startDate.toDate()),
-        formattedEndDate: formatDate(data?.endDate.toDate())
-      }
-    });
-  } catch (error) {
-    console.error('Get election error:', error);
+
     res.status(500).json({
       success: false,
       message: 'An error occurred while retrieving the election. Please try again later.',
@@ -255,10 +246,10 @@ export const getElection = async (req: Request, res: Response) => {
 };
 
 // Create a new election
-export const createElection = async (req: Request, res: Response) => {
+export const createElection = async (req: AuthRequest, res: Response) => {
   try {
     const result = createElectionSchema.safeParse(req.body);
-    
+
     if (!result.success) {
       res.status(400).json({
         success: false,
@@ -267,35 +258,36 @@ export const createElection = async (req: Request, res: Response) => {
       });
       return;
     }
-    
+
     const { title, description, startDate, endDate } = result.data;
-    
+
     // Create new election
-    const newElection = {
+    const newElectionData = {
       title,
       description,
-      startDate: new Date(startDate),
-      endDate: new Date(endDate),
+      startDate,
+      endDate,
       status: ElectionStatus.UPCOMING,
       candidateCount: 0,
       voteCount: 0,
-      createdBy: req.user?.userId,
-      createdAt: new Date(),
-      updatedAt: new Date()
+      createdBy: req.user?.id,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
-    
-    const docRef = await db.collection('elections').add(newElection);
-    
+
+    const docResponse = await databases.createDocument(
+      DATABASE_ID,
+      ELECTIONS_COLLECTION_ID,
+      ID.unique(),
+      newElectionData
+    );
+
     res.status(201).json({
       success: true,
       message: 'Election created successfully',
       data: {
-        id: docRef.id,
-        ...newElection,
-        startDate: newElection.startDate.toISOString(),
-        endDate: newElection.endDate.toISOString(),
-        createdAt: newElection.createdAt.toISOString(),
-        updatedAt: newElection.updatedAt.toISOString(),
+        id: docResponse.$id,
+        ...newElectionData
       }
     });
   } catch (error) {
@@ -309,21 +301,21 @@ export const createElection = async (req: Request, res: Response) => {
 };
 
 // Update an existing election
-export const updateElection = async (req: Request, res: Response) => {
+export const updateElection = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    
+
     // Validate user can manage this election
-    if (req.user && !(await canManageElection(req.user.userId, id))) {
+    if (req.user && !(await canManageElection(req.user.id, id))) {
       res.status(403).json({
         success: false,
         message: 'You do not have permission to update this election'
       });
       return;
     }
-    
+
     const result = updateElectionSchema.safeParse(req.body);
-    
+
     if (!result.success) {
       res.status(400).json({
         success: false,
@@ -332,48 +324,41 @@ export const updateElection = async (req: Request, res: Response) => {
       });
       return;
     }
-    
-    // Get the election to update
-    const electionDoc = await db.collection('elections').doc(id).get();
-    
-    if (!electionDoc.exists) {
-      res.status(404).json({
-        success: false,
-        message: 'Election not found'
-      });
-      return;
-    }
-    
-    // Create update data, parse dates if provided
-    const updateData: Record<string, any> = {
+
+    // Create update data
+    const updateData = {
       ...result.data,
-      updatedAt: new Date()
+      updatedAt: new Date().toISOString()
     };
-    
-    if (result.data.startDate) {
-      updateData.startDate = new Date(result.data.startDate);
-    }
-    
-    if (result.data.endDate) {
-      updateData.endDate = new Date(result.data.endDate);
-    }
-    
+
     // Update the election
-    await db.collection('elections').doc(id).update(updateData);
-    
+    const updatedDoc = await databases.updateDocument(
+      DATABASE_ID,
+      ELECTIONS_COLLECTION_ID,
+      id,
+      updateData
+    );
+
     res.status(200).json({
       success: true,
       message: 'Election updated successfully',
       data: {
-        id,
-        ...updateData,
-        startDate: updateData.startDate ? updateData.startDate.toISOString() : undefined,
-        endDate: updateData.endDate ? updateData.endDate.toISOString() : undefined,
-        updatedAt: updateData.updatedAt.toISOString()
+        id: updatedDoc.$id,
+        ...updateData
       }
     });
   } catch (error) {
     console.error('Update election error:', error);
+
+    // Check if document doesn't exist
+    if (error.code === 404) {
+      res.status(404).json({
+        success: false,
+        message: 'Election not found',
+      });
+      return;
+    }
+
     res.status(500).json({
       success: false,
       message: 'An error occurred while updating the election. Please try again later.',
@@ -383,30 +368,33 @@ export const updateElection = async (req: Request, res: Response) => {
 };
 
 // Delete an election
-export const deleteElection = async (req: Request, res: Response) => {
+export const deleteElection = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    
-    // Check if the election exists
-    const electionDoc = await db.collection('elections').doc(id).get();
-    
-    if (!electionDoc.exists) {
-      res.status(404).json({
-        success: false,
-        message: 'Election not found'
-      });
-      return;
-    }
-    
+
     // Delete the election
-    await db.collection('elections').doc(id).delete();
-    
+    await databases.deleteDocument(
+      DATABASE_ID,
+      ELECTIONS_COLLECTION_ID,
+      id
+    );
+
     res.status(200).json({
       success: true,
       message: 'Election deleted successfully'
     });
   } catch (error) {
     console.error('Delete election error:', error);
+
+    // Check if document doesn't exist
+    if (error.code === 404) {
+      res.status(404).json({
+        success: false,
+        message: 'Election not found',
+      });
+      return;
+    }
+
     res.status(500).json({
       success: false,
       message: 'An error occurred while deleting the election. Please try again later.',
@@ -419,30 +407,31 @@ export const deleteElection = async (req: Request, res: Response) => {
 export const getCandidates = async (req: Request, res: Response) => {
   try {
     const { electionId } = req.params;
-    
-    // This needs to be a Query type, not a CollectionReference
-    const query: Query<DocumentData> = db.collection('candidates')
-      .where('electionId', '==', electionId);
-      
-    const snapshot = await query.get();
-    
-    const candidates = snapshot.docs.map(doc => {
-      const data = doc.data();
+
+    const response = await databases.listDocuments(
+      DATABASE_ID,
+      CANDIDATES_COLLECTION_ID,
+      [
+        Query.equal('electionId', electionId)
+      ]
+    );
+
+    const candidates = response.documents.map(doc => {
       return {
-        id: doc.id,
-        electionId: data.electionId,
-        name: data.name,
-        description: data.description,
-        platform: data.platform,
-        imageUrl: data.imageUrl,
-        imageAlt: data.imageAlt,
-        status: data.status,
-        voteCount: data.voteCount || 0,
-        submittedAt: data.submittedAt.toDate().toISOString(),
-        statusDescription: getCandidateStatusDescription(data.status)
+        id: doc.$id,
+        electionId: doc.electionId,
+        name: doc.name,
+        description: doc.description,
+        platform: doc.platform,
+        imageUrl: doc.imageUrl,
+        imageAlt: doc.imageAlt,
+        status: doc.status,
+        voteCount: doc.voteCount || 0,
+        submittedAt: doc.submittedAt,
+        statusDescription: getCandidateStatusDescription(doc.status)
       };
     });
-    
+
     res.status(200).json({
       success: true,
       count: candidates.length,
@@ -459,7 +448,7 @@ export const getCandidates = async (req: Request, res: Response) => {
 };
 
 // Create a new candidate application
-export const createCandidate = async (req: Request, res: Response) => {
+export const createCandidate = async (req: AuthRequest, res: Response) => {
   try {
     if (!req.file) {
       res.status(400).json({
@@ -468,9 +457,9 @@ export const createCandidate = async (req: Request, res: Response) => {
       });
       return;
     }
-    
+
     const result = createCandidateSchema.safeParse(req.body);
-    
+
     if (!result.success) {
       res.status(400).json({
         success: false,
@@ -479,61 +468,93 @@ export const createCandidate = async (req: Request, res: Response) => {
       });
       return;
     }
-    
+
     const { electionId, name, description, platform, imageAlt } = result.data;
-    
+
     // Check if election exists and is in UPCOMING status
-    const electionDoc = await db.collection('elections').doc(electionId).get();
-    
-    if (!electionDoc.exists) {
-      res.status(404).json({
-        success: false,
-        message: 'Election not found'
-      });
-      return;
-    }
-    
-    const electionData = electionDoc.data();
-    
-    if (electionData?.status !== ElectionStatus.UPCOMING) {
-      res.status(400).json({
-        success: false,
-        message: 'Candidate applications can only be submitted for upcoming elections'
-      });
-      return;
-    }
-    
-    // Create new candidate
-    const newCandidate = {
-      electionId,
-      name,
-      description: description || '',
-      platform,
-      imageUrl: `/uploads/candidates/${req.file.filename}`,
-      imageAlt: imageAlt || name, // Use name as fallback for accessibility
-      status: CandidateStatus.PENDING,
-      voteCount: 0,
-      submittedBy: req.user?.userId,
-      submittedAt: new Date()
-    };
-    
-    const docRef = await db.collection('candidates').add(newCandidate);
-    
-    // Update the election's candidate count
-    await electionDoc.ref.update({
-      candidateCount: (electionData.candidateCount || 0) + 1,
-      updatedAt: new Date()
-    });
-    
-    res.status(201).json({
-      success: true,
-      message: 'Candidate application submitted successfully',
-      data: {
-        id: docRef.id,
-        ...newCandidate,
-        submittedAt: newCandidate.submittedAt.toISOString()
+    try {
+      const election = await databases.getDocument(
+        DATABASE_ID,
+        ELECTIONS_COLLECTION_ID,
+        electionId
+      );
+
+      if (election.status !== ElectionStatus.UPCOMING) {
+        res.status(400).json({
+          success: false,
+          message: 'Candidate applications can only be submitted for upcoming elections'
+        });
+        return;
       }
-    });
+
+      // Upload file to Appwrite Storage
+      const fileId = ID.unique();
+      const fileBuffer = req.file.buffer;
+      const fileName = `${fileId}-${req.file.originalname}`;
+
+      const uploadedFile = await storage.createFile(
+        BUCKET_ID,
+        fileId,
+        InputFile.fromBuffer(
+          fileBuffer, 
+          fileName
+        )
+      );
+
+      // Get the file URL - properly await the promise
+      const fileUrlPromise = storage.getFileView(BUCKET_ID, fileId);
+      const fileUrl = await fileUrlPromise;
+
+      // Create new candidate
+      const newCandidateData = {
+        electionId,
+        name,
+        description: description || '',
+        platform,
+        imageUrl: fileUrl.toString(), // Use toString() to ensure we get a string URL
+        imageAlt: imageAlt || name, // Use name as fallback for accessibility
+        status: CandidateStatus.PENDING,
+        voteCount: 0,
+        submittedBy: req.user?.id,
+        submittedAt: new Date().toISOString()
+      };
+
+      const candidateDoc = await databases.createDocument(
+        DATABASE_ID,
+        CANDIDATES_COLLECTION_ID,
+        ID.unique(),
+        newCandidateData
+      );
+
+      // Update the election's candidate count
+      await databases.updateDocument(
+        DATABASE_ID,
+        ELECTIONS_COLLECTION_ID,
+        electionId,
+        {
+          candidateCount: (election.candidateCount || 0) + 1,
+          updatedAt: new Date().toISOString()
+        }
+      );
+
+      res.status(201).json({
+        success: true,
+        message: 'Candidate application submitted successfully',
+        data: {
+          id: candidateDoc.$id,
+          ...newCandidateData
+        }
+      });
+    } catch (error) {
+      if (error.code === 404) {
+        res.status(404).json({
+          success: false,
+          message: 'Election not found'
+        });
+        return;
+      }
+      throw error;
+    }
   } catch (error) {
     console.error('Create candidate error:', error);
     res.status(500).json({
@@ -545,44 +566,53 @@ export const createCandidate = async (req: Request, res: Response) => {
 };
 
 // Approve a candidate application
-export const approveCandidate = async (req: Request, res: Response) => {
+export const approveCandidate = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    
-    const candidateDoc = await db.collection('candidates').doc(id).get();
-    
-    if (!candidateDoc.exists) {
-      res.status(404).json({
-        success: false,
-        message: 'Candidate not found'
-      });
-      return;
-    }
-    
-    const candidateData = candidateDoc.data();
-    
+
+    // Get candidate document
+    const candidate = await databases.getDocument(
+      DATABASE_ID,
+      CANDIDATES_COLLECTION_ID,
+      id
+    );
+
     // Only approve PENDING candidates
-    if (candidateData?.status !== CandidateStatus.PENDING) {
+    if (candidate.status !== CandidateStatus.PENDING) {
       res.status(400).json({
         success: false,
         message: 'Only pending candidates can be approved'
       });
       return;
     }
-    
+
     // Update the candidate status
-    await candidateDoc.ref.update({
-      status: CandidateStatus.APPROVED,
-      approvedBy: req.user?.userId,
-      approvedAt: new Date()
-    });
-    
+    await databases.updateDocument(
+      DATABASE_ID,
+      CANDIDATES_COLLECTION_ID,
+      id,
+      {
+        status: CandidateStatus.APPROVED,
+        approvedBy: req.user?.id,
+        approvedAt: new Date().toISOString()
+      }
+    );
+
     res.status(200).json({
       success: true,
       message: 'Candidate application approved successfully'
     });
   } catch (error) {
     console.error('Approve candidate error:', error);
+
+    if (error.code === 404) {
+      res.status(404).json({
+        success: false,
+        message: 'Candidate not found'
+      });
+      return;
+    }
+
     res.status(500).json({
       success: false,
       message: 'An error occurred while approving the candidate. Please try again later.',
@@ -592,46 +622,55 @@ export const approveCandidate = async (req: Request, res: Response) => {
 };
 
 // Reject a candidate application
-export const rejectCandidate = async (req: Request, res: Response) => {
+export const rejectCandidate = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const { reason } = req.body;
-    
-    const candidateDoc = await db.collection('candidates').doc(id).get();
-    
-    if (!candidateDoc.exists) {
-      res.status(404).json({
-        success: false,
-        message: 'Candidate not found'
-      });
-      return;
-    }
-    
-    const candidateData = candidateDoc.data();
-    
+
+    // Get candidate document
+    const candidate = await databases.getDocument(
+      DATABASE_ID,
+      CANDIDATES_COLLECTION_ID,
+      id
+    );
+
     // Only reject PENDING candidates
-    if (candidateData?.status !== CandidateStatus.PENDING) {
+    if (candidate.status !== CandidateStatus.PENDING) {
       res.status(400).json({
         success: false,
         message: 'Only pending candidates can be rejected'
       });
       return;
     }
-    
+
     // Update the candidate status
-    await candidateDoc.ref.update({
-      status: CandidateStatus.REJECTED,
-      rejectionReason: reason || 'No reason provided',
-      rejectedBy: req.user?.userId,
-      rejectedAt: new Date()
-    });
-    
+    await databases.updateDocument(
+      DATABASE_ID,
+      CANDIDATES_COLLECTION_ID,
+      id,
+      {
+        status: CandidateStatus.REJECTED,
+        rejectionReason: reason || 'No reason provided',
+        rejectedBy: req.user?.id,
+        rejectedAt: new Date().toISOString()
+      }
+    );
+
     res.status(200).json({
       success: true,
       message: 'Candidate application rejected successfully'
     });
   } catch (error) {
     console.error('Reject candidate error:', error);
+
+    if (error.code === 404) {
+      res.status(404).json({
+        success: false,
+        message: 'Candidate not found'
+      });
+      return;
+    }
+
     res.status(500).json({
       success: false,
       message: 'An error occurred while rejecting the candidate. Please try again later.',
@@ -641,10 +680,10 @@ export const rejectCandidate = async (req: Request, res: Response) => {
 };
 
 // Cast a vote for a candidate
-export const castVote = async (req: Request, res: Response) => {
+export const castVote = async (req: AuthRequest, res: Response) => {
   try {
     const { electionId, candidateId } = req.body;
-    
+
     if (!electionId || !candidateId) {
       res.status(400).json({
         success: false,
@@ -652,90 +691,112 @@ export const castVote = async (req: Request, res: Response) => {
       });
       return;
     }
-    
+
     // Check if election exists and is ACTIVE
-    const electionDoc = await db.collection('elections').doc(electionId).get();
-    
-    if (!electionDoc.exists) {
-      res.status(404).json({
-        success: false,
-        message: 'Election not found'
-      });
-      return;
-    }
-    
-    const electionData = electionDoc.data();
-    
-    if (electionData?.status !== ElectionStatus.ACTIVE) {
+    const election = await databases.getDocument(
+      DATABASE_ID,
+      ELECTIONS_COLLECTION_ID,
+      electionId
+    );
+
+    if (election.status !== ElectionStatus.ACTIVE) {
       res.status(400).json({
         success: false,
         message: 'Votes can only be cast for active elections'
       });
       return;
     }
-    
+
     // Check if candidate exists and is APPROVED
-    const candidateDoc = await db.collection('candidates').doc(candidateId).get();
-    
-    if (!candidateDoc.exists) {
-      res.status(404).json({
-        success: false,
-        message: 'Candidate not found'
-      });
-      return;
-    }
-    
-    const candidateData = candidateDoc.data();
-    
-    if (candidateData?.status !== CandidateStatus.APPROVED) {
+    const candidate = await databases.getDocument(
+      DATABASE_ID,
+      CANDIDATES_COLLECTION_ID,
+      candidateId
+    );
+
+    if (candidate.status !== CandidateStatus.APPROVED) {
       res.status(400).json({
         success: false,
         message: 'Votes can only be cast for approved candidates'
       });
       return;
     }
-    
+
     // Check if user has already voted in this election
-    const votesQuery: Query<DocumentData> = db.collection('votes')
-      .where('electionId', '==', electionId)
-      .where('userId', '==', req.user?.userId);
-      
-    const votesSnapshot = await votesQuery.get();
-    
-    if (!votesSnapshot.empty) {
+    const votesResponse = await databases.listDocuments(
+      DATABASE_ID,
+      VOTES_COLLECTION_ID,
+      [
+        Query.equal('electionId', electionId),
+        Query.equal('userId', req.user?.id)
+      ]
+    );
+
+    if (votesResponse.total > 0) {
       res.status(400).json({
         success: false,
         message: 'You have already voted in this election'
       });
       return;
     }
-    
+
     // Create the vote document
     const newVote = {
       electionId,
       candidateId,
-      userId: req.user?.userId,
-      votedAt: new Date()
+      userId: req.user?.id,
+      votedAt: new Date().toISOString()
     };
-    
-    await db.collection('votes').add(newVote);
-    
+
+    await databases.createDocument(
+      DATABASE_ID,
+      VOTES_COLLECTION_ID,
+      ID.unique(),
+      newVote
+    );
+
     // Update vote count for candidate
-    await candidateDoc.ref.update({
-      voteCount: (candidateData.voteCount || 0) + 1
-    });
-    
+    await databases.updateDocument(
+      DATABASE_ID,
+      CANDIDATES_COLLECTION_ID,
+      candidateId,
+      {
+        voteCount: (candidate.voteCount || 0) + 1
+      }
+    );
+
     // Update vote count for election
-    await electionDoc.ref.update({
-      voteCount: (electionData.voteCount || 0) + 1
-    });
-    
+    await databases.updateDocument(
+      DATABASE_ID,
+      ELECTIONS_COLLECTION_ID,
+      electionId,
+      {
+        voteCount: (election.voteCount || 0) + 1
+      }
+    );
+
     res.status(200).json({
       success: true,
       message: 'Vote cast successfully'
     });
   } catch (error) {
     console.error('Cast vote error:', error);
+
+    if (error.code === 404) {
+      if (error.message.includes('elections')) {
+        res.status(404).json({
+          success: false,
+          message: 'Election not found'
+        });
+      } else {
+        res.status(404).json({
+          success: false,
+          message: 'Candidate not found'
+        });
+      }
+      return;
+    }
+
     res.status(500).json({
       success: false,
       message: 'An error occurred while casting your vote. Please try again later.',
@@ -745,10 +806,10 @@ export const castVote = async (req: Request, res: Response) => {
 };
 
 // Check if user has voted in an election
-export const hasVoted = async (req: Request, res: Response) => {
+export const hasVoted = async (req: AuthRequest, res: Response) => {
   try {
     const { electionId } = req.params;
-    
+
     if (!req.user) {
       res.status(401).json({
         success: false,
@@ -756,16 +817,19 @@ export const hasVoted = async (req: Request, res: Response) => {
       });
       return;
     }
-    
-    const votesQuery: Query<DocumentData> = db.collection('votes')
-      .where('electionId', '==', electionId)
-      .where('userId', '==', req.user.userId);
-      
-    const votesSnapshot = await votesQuery.get();
-    
+
+    const votesResponse = await databases.listDocuments(
+      DATABASE_ID,
+      VOTES_COLLECTION_ID,
+      [
+        Query.equal('electionId', electionId),
+        Query.equal('userId', req.user.id)
+      ]
+    );
+
     res.status(200).json({
       success: true,
-      hasVoted: !votesSnapshot.empty
+      hasVoted: votesResponse.total > 0
     });
   } catch (error) {
     console.error('Has voted check error:', error);
@@ -781,62 +845,67 @@ export const hasVoted = async (req: Request, res: Response) => {
 export const getElectionResults = async (req: Request, res: Response) => {
   try {
     const { electionId } = req.params;
-    
+
     // Check if election exists
-    const electionDoc = await db.collection('elections').doc(electionId).get();
-    
-    if (!electionDoc.exists) {
-      res.status(404).json({
-        success: false,
-        message: 'Election not found'
-      });
-      return;
-    }
-    
-    const electionData = electionDoc.data();
-    
+    const election = await databases.getDocument(
+      DATABASE_ID,
+      ELECTIONS_COLLECTION_ID,
+      electionId
+    );
+
     // Only completed elections should show results
-    if (electionData?.status !== ElectionStatus.COMPLETED) {
+    if (election.status !== ElectionStatus.COMPLETED) {
       res.status(400).json({
         success: false,
         message: 'Results are only available for completed elections'
       });
       return;
     }
-    
+
     // Get approved candidates for this election with their vote counts
-    const candidatesQuery: Query<DocumentData> = db.collection('candidates')
-      .where('electionId', '==', electionId)
-      .where('status', '==', CandidateStatus.APPROVED);
-      
-    const candidatesSnapshot = await candidatesQuery.get();
-    
-    const results = candidatesSnapshot.docs.map(doc => {
-      const data = doc.data();
+    const candidatesResponse = await databases.listDocuments(
+      DATABASE_ID,
+      CANDIDATES_COLLECTION_ID,
+      [
+        Query.equal('electionId', electionId),
+        Query.equal('status', CandidateStatus.APPROVED)
+      ]
+    );
+
+    const results = candidatesResponse.documents.map(doc => {
       return {
-        id: doc.id,
-        name: data.name,
-        voteCount: data.voteCount || 0,
-        percentage: electionData.voteCount > 0 
-          ? ((data.voteCount || 0) / electionData.voteCount) * 100 
+        id: doc.$id,
+        name: doc.name,
+        voteCount: doc.voteCount || 0,
+        percentage: election.voteCount > 0
+          ? ((doc.voteCount || 0) / election.voteCount) * 100
           : 0
       };
     });
-    
+
     // Sort by vote count in descending order
     results.sort((a, b) => b.voteCount - a.voteCount);
-    
+
     res.status(200).json({
       success: true,
       data: {
         electionId,
-        title: electionData.title,
-        totalVotes: electionData.voteCount || 0,
+        title: election.title,
+        totalVotes: election.voteCount || 0,
         results
       }
     });
   } catch (error) {
     console.error('Get election results error:', error);
+
+    if (error.code === 404) {
+      res.status(404).json({
+        success: false,
+        message: 'Election not found'
+      });
+      return;
+    }
+
     res.status(500).json({
       success: false,
       message: 'An error occurred while retrieving election results. Please try again later.',
@@ -844,3 +913,5 @@ export const getElectionResults = async (req: Request, res: Response) => {
     });
   }
 };
+
+export { upload };

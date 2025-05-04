@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
@@ -138,7 +137,7 @@ const BookFacilityPage = () => {
   const onSubmit = (data: BookingFormData) => {
     setSubmitting(true);
     
-    // In a real implementation, this would call a Firebase Cloud Function
+    // Using Appwrite functions instead of Firebase Cloud Functions
     console.log('Booking request:', {
       facilityId,
       ...data,

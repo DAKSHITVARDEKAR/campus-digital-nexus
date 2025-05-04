@@ -1,67 +1,96 @@
-
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User, UserRole, getCurrentUser, login, logout, initializeWithDefaultUser } from '@/services/mockAuth';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import {
+  AppwriteUser,
+  loginWithEmailAndPassword,
+  logoutUser,
+  getCurrentUser,
+  registerWithEmailAndPassword,
+  createGoogleOAuthSession
+} from '@/appwrite/auth';
 import { useToast } from '@/hooks/use-toast';
 
+export type UserRole = 'Admin' | 'Faculty' | 'Student';
+
 interface AuthContextType {
-  user: User | null;
+  user: AppwriteUser | null;
   loading: boolean;
   isAuthenticated: boolean;
-  login: (username: string, password: string) => Promise<User>;
+  login: (email: string, password: string) => Promise<AppwriteUser | null>;
   logout: () => Promise<void>;
   switchRole: (role: UserRole) => Promise<void>;
   hasPermission: (action: string, resource: string, resourceId?: string) => boolean;
+  signInWithGoogle: () => Promise<void>;
+  register: (email: string, password: string, name: string) => Promise<AppwriteUser | null>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const mapAppwriteUser = (appwriteUser: AppwriteUser): AppwriteUser & { role: UserRole } => {
+  let role: UserRole = 'Student';
+  if (appwriteUser.email.includes('admin')) {
+    role = 'Admin';
+  } else if (appwriteUser.email.includes('faculty')) {
+    role = 'Faculty';
+  }
+  return { ...appwriteUser, role };
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AppwriteUser | null>(null);
+  const [mockRole, setMockRole] = useState<UserRole>('Student');
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  // Initialize authentication state
-  useEffect(() => {
-    async function initialize() {
-      try {
-        const currentUser = await getCurrentUser();
-        setUser(currentUser);
-      } catch (error) {
-        console.error('Auth initialization error:', error);
-      } finally {
-        setLoading(false);
+  const checkUserSession = useCallback(async () => {
+    setLoading(true);
+    try {
+      const currentUser = await getCurrentUser();
+      setUser(currentUser);
+      if (currentUser) {
+        setMockRole(mapAppwriteUser(currentUser).role);
       }
+    } catch (error) {
+      console.error('Auth initialization error:', error);
+      setUser(null);
+    } finally {
+      setLoading(false);
     }
-
-    initialize();
   }, []);
 
-  // Login function
-  const handleLogin = async (username: string, password: string) => {
+  useEffect(() => {
+    checkUserSession();
+  }, [checkUserSession]);
+
+  const handleLogin = async (email: string, password: string): Promise<AppwriteUser | null> => {
     try {
-      const user = await login(username, password);
-      setUser(user);
-      toast({
-        title: "Login successful",
-        description: `Welcome back, ${user.name}!`,
-      });
-      return user;
+      await loginWithEmailAndPassword(email, password);
+      const currentUser = await getCurrentUser();
+      setUser(currentUser);
+      if (currentUser) {
+        setMockRole(mapAppwriteUser(currentUser).role);
+        toast({
+          title: "Login successful",
+          description: `Welcome back, ${currentUser.name}!`,
+        });
+        return currentUser;
+      }
+      return null;
     } catch (error) {
       console.error('Login error:', error);
       toast({
         title: "Login failed",
-        description: "Invalid username or password.",
+        description: "Invalid email or password.",
         variant: "destructive",
       });
       throw error;
     }
   };
 
-  // Logout function
   const handleLogout = async () => {
     try {
-      await logout();
+      await logoutUser();
       setUser(null);
+      setMockRole('Student');
       toast({
         title: "Logged out",
         description: "You have been logged out successfully.",
@@ -76,108 +105,80 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Switch role function for testing
-  const switchRole = async (role: UserRole) => {
+  const handleRegister = async (email: string, password: string, name: string): Promise<AppwriteUser | null> => {
     try {
-      const user = await initializeWithDefaultUser(role);
-      setUser(user);
+      const newUser = await registerWithEmailAndPassword(email, password, name);
+      await handleLogin(email, password);
       toast({
-        title: "Role Changed",
-        description: `You are now using the application as: ${role}`,
-        duration: 3000,
+        title: "Registration successful",
+        description: `Welcome, ${name}! Your account has been created.`,
       });
-      
-      // Force page reload to update permissions
-      window.location.reload();
+      return newUser;
     } catch (error) {
+      console.error('Registration error:', error);
       toast({
-        title: "Error",
-        description: "Failed to change role",
+        title: "Registration failed",
+        description: "Could not create account. Please try again.",
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
+
+  const handleSignInWithGoogle = async () => {
+    try {
+      await createGoogleOAuthSession();
+    } catch (error) {
+      console.error('Google Sign In error:', error);
+      toast({
+        title: "Google Sign-In Failed",
+        description: "Could not initiate Google Sign-In. Please try again.",
         variant: "destructive",
       });
     }
   };
 
-  // Permission checking function based on user role
+  const switchRole = async (role: UserRole) => {
+    if (user) {
+      setMockRole(role);
+      toast({
+        title: "Role View Changed (Demo)",
+        description: `You are now viewing the application as: ${role}`,
+        duration: 3000,
+      });
+    } else {
+      toast({
+        title: "Error",
+        description: "Cannot switch role when not logged in.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const hasPermission = (action: string, resource: string, resourceId?: string): boolean => {
-    // If no user is logged in, they have no permissions
     if (!user) return false;
-    
-    // Define role-based permissions
+
+    const currentRole = mockRole;
+
     const permissions: Record<UserRole, Record<string, Record<string, boolean>>> = {
       Admin: {
-        election: {
-          create: true,
-          read: true,
-          update: true,
-          delete: true,
-          manage: true,
-          approveCandidate: true,
-          rejectCandidate: true
-        },
-        candidate: {
-          create: true,
-          read: true,
-          update: true,
-          delete: true,
-          approve: true,
-          reject: true
-        },
-        vote: {
-          create: true,
-          read: true
-        }
+        election: { create: true, read: true, update: true, delete: true, manage: true, approveCandidate: true, rejectCandidate: true },
+        candidate: { create: true, read: true, update: true, delete: true, approve: true, reject: true },
+        vote: { create: true, read: true },
       },
       Faculty: {
-        election: {
-          create: false,
-          read: true,
-          update: false,
-          delete: false,
-          manage: false,
-          approveCandidate: true,
-          rejectCandidate: true
-        },
-        candidate: {
-          create: true,
-          read: true,
-          update: true,
-          delete: true,
-          approve: true,
-          reject: true
-        },
-        vote: {
-          create: true,
-          read: true
-        }
+        election: { create: false, read: true, update: false, delete: false, manage: false, approveCandidate: true, rejectCandidate: true },
+        candidate: { create: true, read: true, update: true, delete: true, approve: true, reject: true },
+        vote: { create: true, read: true },
       },
       Student: {
-        election: {
-          create: false,
-          read: true,
-          update: false,
-          delete: false,
-          manage: false,
-          approveCandidate: false,
-          rejectCandidate: false
-        },
-        candidate: {
-          create: true,
-          read: true,
-          update: true, // Can only update own if pending
-          delete: true, // Can only delete own if pending
-          approve: false,
-          reject: false
-        },
-        vote: {
-          create: true, // Can only vote once per election
-          read: true
-        }
+        election: { create: false, read: true, update: false, delete: false, manage: false, approveCandidate: false, rejectCandidate: false },
+        candidate: { create: true, read: true, update: true, delete: true, approve: false, reject: false },
+        vote: { create: true, read: true },
       }
     };
-    
-    // Check if the user has the requested permission
-    return permissions[user.role]?.[resource]?.[action] || false;
+
+    return permissions[currentRole]?.[resource]?.[action] || false;
   };
 
   const value = {
@@ -187,7 +188,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     login: handleLogin,
     logout: handleLogout,
     switchRole,
-    hasPermission
+    hasPermission,
+    signInWithGoogle: handleSignInWithGoogle,
+    register: handleRegister,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

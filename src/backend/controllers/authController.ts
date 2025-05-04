@@ -1,9 +1,9 @@
-
 import { Request, Response } from 'express';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
-import { auth, db } from '../config/firebase';
+import { account, databases, DATABASE_ID, USERS_COLLECTION_ID } from '../config/appwrite';
+import { ID, Query } from 'node-appwrite';
 
 // Validation schemas using Zod
 const registerSchema = z.object({
@@ -36,55 +36,92 @@ export const register = async (req: Request, res: Response) => {
     
     const { username, email, password, name, role, department } = validatedData.data;
     
-    // Check if user already exists in Firestore
-    const usersRef = db.collection('users');
-    const usernameQuery = await usersRef.where('username', '==', username).get();
-    const emailQuery = await usersRef.where('email', '==', email).get();
-    
-    if (!usernameQuery.empty || !emailQuery.empty) {
-      return res.status(409).json({
-        success: false,
-        message: 'A user with this username or email already exists. Please try a different username or email.'
-      });
-    }
-    
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
-    
-    // Create Firebase auth user
+    // Check if user already exists in Appwrite
     try {
-      const userRecord = await auth.createUser({
+      const existingUsers = await databases.listDocuments(
+        DATABASE_ID,
+        USERS_COLLECTION_ID,
+        [
+          Query.equal('email', email)
+        ]
+      );
+      
+      if (existingUsers.total > 0) {
+        return res.status(409).json({
+          success: false,
+          message: 'A user with this email already exists. Please try a different email.'
+        });
+      }
+      
+      // Check username uniqueness
+      const existingUsernames = await databases.listDocuments(
+        DATABASE_ID,
+        USERS_COLLECTION_ID,
+        [
+          Query.equal('username', username)
+        ]
+      );
+      
+      if (existingUsernames.total > 0) {
+        return res.status(409).json({
+          success: false,
+          message: 'This username is already taken. Please choose a different username.'
+        });
+      }
+      
+      // Create user account in Appwrite
+      const appwriteUser = await account.create(
+        ID.unique(),
         email,
         password,
-        displayName: name,
-      });
+        name
+      );
       
-      // Set custom claims for role
-      await auth.setCustomUserClaims(userRecord.uid, { role });
+      // Hash password for our user profile document
+      const hashedPassword = await bcrypt.hash(password, 10);
       
-      // Create user in Firestore
+      // Create user profile document
       const userData = {
-        id: userRecord.uid,
+        userId: appwriteUser.$id,
         username,
         email,
         name,
-        hashedPassword,
+        hashedPassword, // Store hashed password for custom authentication if needed
         role,
         department: department || null,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
       
-      await db.collection('users').doc(userRecord.uid).set(userData);
+      // Store user profile in Appwrite database
+      const userProfile = await databases.createDocument(
+        DATABASE_ID,
+        USERS_COLLECTION_ID,
+        ID.unique(),
+        userData
+      );
+      
+      // Generate JWT token
+      const token = jwt.sign(
+        { 
+          id: appwriteUser.$id, 
+          email: appwriteUser.email,
+          username,
+          role
+        },
+        process.env.JWT_SECRET || 'your-secret-key',
+        { expiresIn: '30d' }
+      );
       
       // Return user data without sensitive information
       const userResponse = {
-        id: userRecord.uid,
+        id: appwriteUser.$id,
         username,
         email,
         name,
         role,
-        department: department || null
+        department: department || null,
+        token
       };
       
       return res.status(201).json({
@@ -93,7 +130,7 @@ export const register = async (req: Request, res: Response) => {
         data: userResponse
       });
     } catch (error: any) {
-      // Handle Firebase Auth specific errors
+      console.error('Appwrite registration error:', error);
       return res.status(400).json({
         success: false,
         message: error.message || 'Error creating user',
@@ -126,55 +163,78 @@ export const login = async (req: Request, res: Response) => {
     
     const { username, password } = validatedData.data;
     
-    // Find user by username in Firestore
-    const usersRef = db.collection('users');
-    const userQuery = await usersRef.where('username', '==', username).limit(1).get();
-    
-    if (userQuery.empty) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid username or password. Please check your credentials and try again.'
-      });
-    }
-    
-    const userDoc = userQuery.docs[0];
-    const userData = userDoc.data();
-    
-    // Verify password
-    const validPassword = await bcrypt.compare(password, userData.hashedPassword);
-    
-    if (!validPassword) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid username or password. Please check your credentials and try again.'
-      });
-    }
-    
-    // Generate JWT token
-    const token = jwt.sign(
-      {
-        userId: userDoc.id,
-        role: userData.role
-      },
-      process.env.JWT_SECRET || 'your-secret-key',
-      { expiresIn: '24h' }
-    );
-    
-    return res.status(200).json({
-      success: true,
-      message: 'Login successful. Welcome back!',
-      data: {
-        token,
-        user: {
-          id: userDoc.id,
-          username: userData.username,
-          email: userData.email,
-          name: userData.name,
-          role: userData.role,
-          department: userData.department
-        }
+    try {
+      // Find user by username
+      const userQuery = await databases.listDocuments(
+        DATABASE_ID,
+        USERS_COLLECTION_ID,
+        [
+          Query.equal('username', username)
+        ]
+      );
+      
+      if (userQuery.total === 0) {
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid username or password. Please check your credentials and try again.'
+        });
       }
-    });
+      
+      const userProfile = userQuery.documents[0];
+      
+      // Verify password using bcrypt
+      const isPasswordValid = await bcrypt.compare(password, userProfile.hashedPassword);
+      
+      if (!isPasswordValid) {
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid username or password. Please check your credentials and try again.'
+        });
+      }
+      
+      // Try Appwrite session login
+      try {
+        await account.createEmailSession(userProfile.email, password);
+      } catch (sessionError) {
+        console.warn('Could not create Appwrite session:', sessionError);
+        // Continue with JWT login even if Appwrite session fails
+      }
+      
+      // Generate JWT token
+      const token = jwt.sign(
+        { 
+          id: userProfile.userId, 
+          email: userProfile.email,
+          username: userProfile.username,
+          role: userProfile.role
+        },
+        process.env.JWT_SECRET || 'your-secret-key',
+        { expiresIn: '30d' }
+      );
+      
+      return res.status(200).json({
+        success: true,
+        message: 'Login successful',
+        data: {
+          user: {
+            id: userProfile.userId,
+            username: userProfile.username,
+            email: userProfile.email,
+            name: userProfile.name,
+            role: userProfile.role,
+            department: userProfile.department || null
+          },
+          token
+        }
+      });
+    } catch (error) {
+      console.error('Login error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'An error occurred during login. Please try again later.',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
   } catch (error) {
     console.error('Login error:', error);
     return res.status(500).json({
@@ -188,45 +248,75 @@ export const login = async (req: Request, res: Response) => {
 // Get current user profile
 export const getProfile = async (req: Request, res: Response) => {
   try {
-    if (!req.user) {
+    // User should be attached by the auth middleware
+    const user = (req as any).user;
+    
+    if (!user) {
       return res.status(401).json({
         success: false,
-        message: 'Authentication required. Please log in to access your profile.'
+        message: 'Not authenticated'
       });
     }
     
-    // Get user from Firestore
-    const userDoc = await db.collection('users').doc(req.user.userId).get();
+    // Get full user profile from database
+    const userProfile = await databases.listDocuments(
+      DATABASE_ID,
+      USERS_COLLECTION_ID,
+      [
+        Query.equal('userId', user.id)
+      ]
+    );
     
-    if (!userDoc.exists) {
+    if (userProfile.total === 0) {
       return res.status(404).json({
         success: false,
-        message: 'User not found. Your account may have been deleted.'
+        message: 'User profile not found'
       });
     }
     
-    const userData = userDoc.data();
-    
-    // Return user data without sensitive information
-    const userResponse = {
-      id: userDoc.id,
-      username: userData?.username,
-      email: userData?.email,
-      name: userData?.name,
-      role: userData?.role,
-      department: userData?.department,
-      createdAt: userData?.createdAt
-    };
+    const profile = userProfile.documents[0];
     
     return res.status(200).json({
       success: true,
-      data: userResponse
+      data: {
+        id: profile.userId,
+        username: profile.username,
+        email: profile.email,
+        name: profile.name,
+        role: profile.role,
+        department: profile.department || null,
+        createdAt: profile.createdAt
+      }
     });
   } catch (error) {
     console.error('Get profile error:', error);
     return res.status(500).json({
       success: false,
       message: 'An error occurred while retrieving your profile. Please try again later.',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+};
+
+// Logout user
+export const logout = async (req: Request, res: Response) => {
+  try {
+    // Attempt to delete the current Appwrite session
+    try {
+      await account.deleteSession('current');
+    } catch (error) {
+      // Ignore errors, as the user might not have an active session
+    }
+    
+    return res.status(200).json({
+      success: true,
+      message: 'Logged out successfully'
+    });
+  } catch (error) {
+    console.error('Logout error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'An error occurred during logout. Please try again later.',
       error: error instanceof Error ? error.message : 'Unknown error'
     });
   }

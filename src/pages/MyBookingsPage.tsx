@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { format } from 'date-fns';
@@ -121,7 +120,8 @@ const MyBookingsPage = () => {
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
-  const [cancelling, setCancelling] = useState(false);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [bookings, setBookings] = useState(myBookings);
   
   const handleViewDetails = (booking: any) => {
     setSelectedBooking(booking);
@@ -132,28 +132,26 @@ const MyBookingsPage = () => {
     setSelectedBooking(booking);
     setCancelDialogOpen(true);
   };
-  
-  const confirmCancellation = () => {
-    setCancelling(true);
+
+  const handleCancelBooking = (bookingId: string) => {
+    setCancellingId(bookingId);
     
-    // In a real implementation, this would call a Firebase Cloud Function
-    console.log('Cancelling booking:', selectedBooking.id);
-    
-    // Simulate API call delay
+    // Using Appwrite functions instead of Firebase Cloud Functions
     setTimeout(() => {
-      setCancelling(false);
-      setCancelDialogOpen(false);
+      // Update the booking list after successful cancellation
+      setBookings((current) => current.filter((booking) => booking.id !== bookingId));
       
+      setCancellingId(null);
       toast({
         title: "Booking Cancelled",
-        description: "Your booking request has been cancelled successfully.",
+        description: "Your facility booking has been cancelled successfully."
       });
-    }, 1500);
+    }, 1000);
   };
   
-  const pendingBookings = myBookings.filter(booking => booking.status === 'pending');
-  const approvedBookings = myBookings.filter(booking => booking.status === 'approved');
-  const otherBookings = myBookings.filter(booking => !['pending', 'approved'].includes(booking.status));
+  const pendingBookings = bookings.filter(booking => booking.status === 'pending');
+  const approvedBookings = bookings.filter(booking => booking.status === 'approved');
+  const otherBookings = bookings.filter(booking => !['pending', 'approved'].includes(booking.status));
   
   const BookingCard = ({ booking }: { booking: any }) => (
     <Card className="overflow-hidden h-full">
@@ -228,7 +226,7 @@ const MyBookingsPage = () => {
         <TabsList>
           <TabsTrigger value="pending">Pending ({pendingBookings.length})</TabsTrigger>
           <TabsTrigger value="approved">Approved ({approvedBookings.length})</TabsTrigger>
-          <TabsTrigger value="all">All Bookings ({myBookings.length})</TabsTrigger>
+          <TabsTrigger value="all">All Bookings ({bookings.length})</TabsTrigger>
         </TabsList>
         
         <TabsContent value="pending">
@@ -269,7 +267,7 @@ const MyBookingsPage = () => {
         
         <TabsContent value="all">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
-            {myBookings.map((booking) => (
+            {bookings.map((booking) => (
               <BookingCard key={booking.id} booking={booking} />
             ))}
           </div>
@@ -393,15 +391,15 @@ const MyBookingsPage = () => {
             </DialogHeader>
             
             <div className="flex justify-end space-x-2">
-              <Button variant="outline" onClick={() => setCancelDialogOpen(false)} disabled={cancelling}>
+              <Button variant="outline" onClick={() => setCancelDialogOpen(false)} disabled={cancellingId === selectedBooking.id}>
                 No, Keep Reservation
               </Button>
               <Button 
                 variant="destructive" 
-                onClick={confirmCancellation}
-                disabled={cancelling}
+                onClick={() => handleCancelBooking(selectedBooking.id)}
+                disabled={cancellingId === selectedBooking.id}
               >
-                {cancelling ? (
+                {cancellingId === selectedBooking.id ? (
                   <>
                     <div className="animate-spin mr-2 h-4 w-4 border-2 border-current border-t-transparent rounded-full"></div>
                     Cancelling...

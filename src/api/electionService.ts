@@ -1,10 +1,13 @@
+import { useState } from 'react';
+import { useToast } from '@/hooks/use-toast';
+// Import Appwrite services
+import { account, databases, storage } from '../appwrite/config';
+import { loginWithEmailAndPassword, registerWithEmailAndPassword, logoutUser, getCurrentUser } from '../appwrite/auth';
+// Use Vite's way of accessing environment variables
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 import axios from 'axios';
-import { auth, db } from '../firebase/config';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+import { ID, Query } from 'appwrite'; // Import Appwrite utilities
 
 // Setup axios instance with auth header
 const apiClient = axios.create({
@@ -30,29 +33,34 @@ apiClient.interceptors.request.use(
 export const authService = {
   login: async (username: string, password: string) => {
     try {
-      // First try to login through backend to get username/password match
-      const response = await apiClient.post('/auth/login', { username, password });
+      // Try to login through Appwrite
+      const session = await loginWithEmailAndPassword(username, password);
       
-      if (response.data.success) {
-        // Store token
-        localStorage.setItem('token', response.data.data.token);
+      if (session) {
+        // Store session info
+        localStorage.setItem('token', session.$id);
         
-        // Also authenticate with Firebase Auth for client-side features
-        // We use the email from the response instead of username
-        const { email } = response.data.data.user;
-        await signInWithEmailAndPassword(auth, email, password);
+        // Get user data
+        const user = await getCurrentUser();
         
-        return response.data;
-      }
-      return response.data;
-    } catch (error) {
-      if (axios.isAxiosError(error)) {
         return {
-          success: false,
-          message: error.response?.data?.message || 'Login failed. Please try again.',
-          error: error.response?.data?.error
+          success: true,
+          message: 'Login successful',
+          data: {
+            token: session.$id,
+            user: {
+              email: user?.email,
+              name: user?.name,
+              id: user?.$id
+            }
+          }
         };
       }
+      return {
+        success: false,
+        message: 'Login failed. Please try again.'
+      };
+    } catch (error) {
       return {
         success: false,
         message: 'Login failed. Please try again.',
@@ -63,22 +71,31 @@ export const authService = {
   
   register: async (userData: any) => {
     try {
-      const response = await apiClient.post('/auth/register', userData);
+      const user = await registerWithEmailAndPassword(
+        userData.email,
+        userData.password,
+        userData.name || userData.username
+      );
       
-      // If registration is successful, also authenticate with Firebase Auth
-      if (response.data.success) {
-        await createUserWithEmailAndPassword(auth, userData.email, userData.password);
-      }
-      
-      return response.data;
-    } catch (error) {
-      if (axios.isAxiosError(error)) {
+      if (user) {
         return {
-          success: false,
-          message: error.response?.data?.message || 'Registration failed. Please try again.',
-          error: error.response?.data?.error
+          success: true,
+          message: 'Registration successful',
+          data: {
+            user: {
+              email: user.email,
+              name: user.name,
+              id: user.$id
+            }
+          }
         };
       }
+      
+      return {
+        success: false,
+        message: 'Registration failed. Please try again.'
+      };
+    } catch (error) {
       return {
         success: false,
         message: 'Registration failed. Please try again.',
@@ -89,15 +106,26 @@ export const authService = {
   
   getProfile: async () => {
     try {
-      return (await apiClient.get('/auth/profile')).data;
-    } catch (error) {
-      if (axios.isAxiosError(error)) {
+      const user = await getCurrentUser();
+      
+      if (user) {
         return {
-          success: false,
-          message: error.response?.data?.message || 'Failed to get profile.',
-          error: error.response?.data?.error
+          success: true,
+          data: {
+            user: {
+              email: user.email,
+              name: user.name,
+              id: user.$id
+            }
+          }
         };
       }
+      
+      return {
+        success: false,
+        message: 'Failed to get profile.'
+      };
+    } catch (error) {
       return {
         success: false,
         message: 'Failed to get profile.',
@@ -108,15 +136,29 @@ export const authService = {
   
   logout: async () => {
     localStorage.removeItem('token');
-    await signOut(auth);
+    await logoutUser();
   }
 };
+
+// Constants for Appwrite - using environment variables
+const DATABASE_ID = import.meta.env.VITE_APPWRITE_DATABASE_ID || 'default';
+const ELECTIONS_COLLECTION_ID = import.meta.env.VITE_APPWRITE_ELECTIONS_COLLECTION_ID || 'elections';
+const CANDIDATES_COLLECTION_ID = import.meta.env.VITE_APPWRITE_CANDIDATES_COLLECTION_ID || 'candidates';
+const VOTES_COLLECTION_ID = import.meta.env.VITE_APPWRITE_VOTES_COLLECTION_ID || 'votes';
+const BUCKET_ID = import.meta.env.VITE_APPWRITE_BUCKET_ID || 'election_assets';
 
 // Election service
 export const electionService = {
   getElections: async () => {
     try {
-      return (await apiClient.get('/elections')).data;
+      const response = await databases.listDocuments(
+        DATABASE_ID,
+        ELECTIONS_COLLECTION_ID
+      );
+      return {
+        success: true,
+        data: response.documents
+      };
     } catch (error) {
       console.error('Error fetching elections:', error);
       throw error;
@@ -125,7 +167,15 @@ export const electionService = {
   
   getElection: async (id: string) => {
     try {
-      return (await apiClient.get(`/elections/${id}`)).data;
+      const response = await databases.getDocument(
+        DATABASE_ID,
+        ELECTIONS_COLLECTION_ID,
+        id
+      );
+      return {
+        success: true,
+        data: response
+      };
     } catch (error) {
       console.error('Error fetching election:', error);
       throw error;
@@ -134,7 +184,16 @@ export const electionService = {
   
   createElection: async (electionData: any) => {
     try {
-      return (await apiClient.post('/elections', electionData)).data;
+      const response = await databases.createDocument(
+        DATABASE_ID,
+        ELECTIONS_COLLECTION_ID,
+        ID.unique(),
+        electionData
+      );
+      return {
+        success: true,
+        data: response
+      };
     } catch (error) {
       console.error('Error creating election:', error);
       throw error;
@@ -143,7 +202,16 @@ export const electionService = {
   
   updateElection: async (id: string, electionData: any) => {
     try {
-      return (await apiClient.put(`/elections/${id}`, electionData)).data;
+      const response = await databases.updateDocument(
+        DATABASE_ID,
+        ELECTIONS_COLLECTION_ID,
+        id,
+        electionData
+      );
+      return {
+        success: true,
+        data: response
+      };
     } catch (error) {
       console.error('Error updating election:', error);
       throw error;
@@ -152,76 +220,136 @@ export const electionService = {
   
   deleteElection: async (id: string) => {
     try {
-      return (await apiClient.delete(`/elections/${id}`)).data;
+      await databases.deleteDocument(
+        DATABASE_ID,
+        ELECTIONS_COLLECTION_ID,
+        id
+      );
+      return {
+        success: true
+      };
     } catch (error) {
       console.error('Error deleting election:', error);
       throw error;
     }
   },
   
+  // Candidates
   getCandidates: async (electionId: string) => {
     try {
-      return (await apiClient.get(`/elections/${electionId}/candidates`)).data;
+      const response = await databases.listDocuments(
+        DATABASE_ID,
+        CANDIDATES_COLLECTION_ID,
+        [
+          Query.equal('electionId', electionId)
+        ]
+      );
+      return {
+        success: true,
+        data: response.documents
+      };
     } catch (error) {
       console.error('Error fetching candidates:', error);
       throw error;
     }
   },
   
-  submitCandidateApplication: async (applicationData: FormData) => {
+  createCandidate: async (candidateData: any, imageFile: File) => {
     try {
-      return (await apiClient.post('/candidates', applicationData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
+      // Upload image first
+      const fileId = ID.unique();
+      await storage.createFile(
+        BUCKET_ID,
+        fileId,
+        imageFile
+      );
+      
+      // Get the image URL
+      const imageUrl = storage.getFileView(BUCKET_ID, fileId);
+      
+      // Create candidate with image URL
+      const response = await databases.createDocument(
+        DATABASE_ID,
+        CANDIDATES_COLLECTION_ID,
+        ID.unique(),
+        {
+          ...candidateData,
+          imageUrl: imageUrl.href
         }
-      })).data;
+      );
+      
+      return {
+        success: true,
+        data: response
+      };
     } catch (error) {
-      console.error('Error submitting candidate application:', error);
+      console.error('Error creating candidate:', error);
       throw error;
     }
   },
   
-  approveCandidate: async (id: string) => {
+  // Votes
+  vote: async (electionId: string, candidateId: string) => {
     try {
-      return (await apiClient.patch(`/candidates/${id}/approve`)).data;
+      const response = await databases.createDocument(
+        DATABASE_ID,
+        VOTES_COLLECTION_ID,
+        ID.unique(),
+        {
+          electionId,
+          candidateId,
+          userId: account.get().$id, // Current user
+          timestamp: new Date().toISOString()
+        }
+      );
+      
+      return {
+        success: true,
+        data: response
+      };
     } catch (error) {
-      console.error('Error approving candidate:', error);
+      console.error('Error voting:', error);
       throw error;
     }
   },
   
-  rejectCandidate: async (id: string) => {
+  getResults: async (electionId: string) => {
     try {
-      return (await apiClient.patch(`/candidates/${id}/reject`)).data;
+      const votes = await databases.listDocuments(
+        DATABASE_ID,
+        VOTES_COLLECTION_ID,
+        [
+          Query.equal('electionId', electionId)
+        ]
+      );
+      
+      // Get all candidates for this election
+      const candidates = await databases.listDocuments(
+        DATABASE_ID,
+        CANDIDATES_COLLECTION_ID,
+        [
+          Query.equal('electionId', electionId)
+        ]
+      );
+      
+      // Count votes for each candidate
+      const results = candidates.documents.map(candidate => {
+        const candidateVotes = votes.documents.filter(vote => vote.candidateId === candidate.$id);
+        return {
+          candidate: candidate,
+          voteCount: candidateVotes.length
+        };
+      });
+      
+      return {
+        success: true,
+        data: {
+          totalVotes: votes.documents.length,
+          results
+        }
+      };
     } catch (error) {
-      console.error('Error rejecting candidate:', error);
-      throw error;
-    }
-  },
-  
-  castVote: async (electionId: string, candidateId: string) => {
-    try {
-      return (await apiClient.post('/votes', { electionId, candidateId })).data;
-    } catch (error) {
-      console.error('Error casting vote:', error);
-      throw error;
-    }
-  },
-  
-  getElectionResults: async (electionId: string) => {
-    try {
-      return (await apiClient.get(`/elections/${electionId}/results`)).data;
-    } catch (error) {
-      console.error('Error fetching election results:', error);
-      throw error;
-    }
-  },
-  
-  hasVoted: async (electionId: string) => {
-    try {
-      return (await apiClient.get(`/elections/${electionId}/has-voted`)).data;
-    } catch (error) {
-      console.error('Error checking if user has voted:', error);
+      console.error('Error getting results:', error);
       throw error;
     }
   }

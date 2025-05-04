@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useNavigate } from 'react-router-dom';
@@ -21,13 +20,11 @@ import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { registerWithEmailAndPassword, createGoogleOAuthSession } from '@/appwrite/auth';
 
 const signupSchema = z.object({
   fullName: z.string().min(2, { message: 'Name must be at least 2 characters' }),
-  email: z.string().email({ message: 'Please enter a valid college email address' }).refine(
-    (email) => email.endsWith('@college.edu'), 
-    { message: 'Must use a valid college email address (@college.edu)' }
-  ),
+  email: z.string().email({ message: 'Please enter a valid email address' }),
   password: z.string().min(8, { message: 'Password must be at least 8 characters' }),
   confirmPassword: z.string(),
 }).refine((data) => data.password === data.confirmPassword, {
@@ -41,10 +38,9 @@ const SignupPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedRole, setSelectedRole] = useState('student');
   const navigate = useNavigate();
   const { toast } = useToast();
-  
+
   const form = useForm<SignupFormValues>({
     resolver: zodResolver(signupSchema),
     defaultValues: {
@@ -58,27 +54,23 @@ const SignupPage = () => {
   const onSubmit = async (data: SignupFormValues) => {
     setIsLoading(true);
     setError(null);
-    
+
     try {
-      // In a real implementation, this would call Firebase Auth
-      // const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
-      // await updateProfile(userCredential.user, { displayName: data.fullName });
-      
-      // Simulate auth delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Mock successful signup
+      await registerWithEmailAndPassword(data.email, data.password, data.fullName);
+
       toast({
         title: "Account created",
-        description: `Your ${selectedRole} account has been created successfully. Welcome to Campus Digital Nexus!`,
+        description: `Your account has been created successfully. Welcome to Campus Digital Nexus! Please log in.`,
       });
-      
-      // Redirect to the login page after successful signup
+
       navigate('/login');
-    } catch (err) {
-      // Handle error based on Firebase error codes
-      setError('An error occurred during sign up. Please try again.');
-      console.error(err);
+    } catch (err: any) {
+      console.error("Signup Page Error:", err);
+      if (err.code === 409) {
+        setError('An account with this email already exists. Please log in or use a different email.');
+      } else {
+        setError(err.message || 'An error occurred during sign up. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -87,27 +79,11 @@ const SignupPage = () => {
   const handleGoogleSignUp = async () => {
     setGoogleLoading(true);
     setError(null);
-    
     try {
-      // In a real implementation, this would call Firebase Auth
-      // const userCredential = await signInWithPopup(auth, googleProvider);
-      
-      // Simulate auth delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Mock successful signup
-      toast({
-        title: "Account created with Google",
-        description: `Your ${selectedRole} account has been created successfully. Welcome to Campus Digital Nexus!`,
-      });
-      
-      // Redirect to the login page after successful signup
-      navigate('/login');
+      await createGoogleOAuthSession();
     } catch (err) {
-      // Handle error based on Firebase error codes
+      console.error('Google Sign Up error:', err);
       setError('Google sign-up failed. Please try again or use email registration.');
-      console.error(err);
-    } finally {
       setGoogleLoading(false);
     }
   };
@@ -121,7 +97,7 @@ const SignupPage = () => {
           </div>
           <CardTitle className="text-2xl font-bold text-center">Create an Account</CardTitle>
           <CardDescription className="text-center">
-            Sign up with your college email to access the platform
+            Sign up to access the platform
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -131,27 +107,13 @@ const SignupPage = () => {
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
-          
-          <Tabs defaultValue="student" onValueChange={setSelectedRole} className="mb-6">
-            <TabsList className="grid grid-cols-3 w-full">
-              <TabsTrigger value="student">Student</TabsTrigger>
-              <TabsTrigger value="faculty">Faculty</TabsTrigger>
-              <TabsTrigger value="admin">Admin</TabsTrigger>
-            </TabsList>
-            <div className="mt-2 text-center">
-              <Badge variant="outline" className="text-xs">
-                Registering as: {selectedRole.charAt(0).toUpperCase() + selectedRole.slice(1)}
-              </Badge>
-            </div>
-          </Tabs>
-          
-          {/* Google Sign Up Button */}
+
           <div className="mb-4">
-            <Button 
-              type="button" 
-              className="w-full" 
+            <Button
+              type="button"
+              className="w-full"
               variant="outline"
-              disabled={googleLoading}
+              disabled={googleLoading || isLoading}
               onClick={handleGoogleSignUp}
             >
               {googleLoading ? (
@@ -160,7 +122,7 @@ const SignupPage = () => {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  Signing up...
+                  Redirecting to Google...
                 </>
               ) : (
                 <>
@@ -172,18 +134,18 @@ const SignupPage = () => {
               )}
             </Button>
           </div>
-          
+
           <div className="relative mb-4">
             <div className="absolute inset-0 flex items-center">
               <Separator className="w-full" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-white px-2 text-muted-foreground">
+              <span className="bg-card px-2 text-muted-foreground">
                 Or continue with email
               </span>
             </div>
           </div>
-          
+
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <FormField
@@ -193,36 +155,36 @@ const SignupPage = () => {
                   <FormItem>
                     <FormLabel>Full Name</FormLabel>
                     <FormControl>
-                      <Input 
-                        placeholder="John Doe" 
-                        {...field} 
-                        disabled={isLoading}
+                      <Input
+                        placeholder="John Doe"
+                        {...field}
+                        disabled={isLoading || googleLoading}
                       />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              
+
               <FormField
                 control={form.control}
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>College Email</FormLabel>
+                    <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input 
-                        placeholder="your.name@college.edu" 
-                        {...field} 
+                      <Input
+                        placeholder="your.name@example.com"
+                        {...field}
                         type="email"
-                        disabled={isLoading}
+                        disabled={isLoading || googleLoading}
                       />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              
+
               <FormField
                 control={form.control}
                 name="password"
@@ -230,18 +192,18 @@ const SignupPage = () => {
                   <FormItem>
                     <FormLabel>Password</FormLabel>
                     <FormControl>
-                      <Input 
-                        placeholder="••••••••" 
-                        {...field} 
+                      <Input
+                        placeholder="••••••••"
+                        {...field}
                         type="password"
-                        disabled={isLoading}
+                        disabled={isLoading || googleLoading}
                       />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              
+
               <FormField
                 control={form.control}
                 name="confirmPassword"
@@ -249,19 +211,19 @@ const SignupPage = () => {
                   <FormItem>
                     <FormLabel>Confirm Password</FormLabel>
                     <FormControl>
-                      <Input 
-                        placeholder="••••••••" 
-                        {...field} 
+                      <Input
+                        placeholder="••••••••"
+                        {...field}
                         type="password"
-                        disabled={isLoading}
+                        disabled={isLoading || googleLoading}
                       />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              
-              <Button type="submit" className="w-full" disabled={isLoading}>
+
+              <Button type="submit" className="w-full" disabled={isLoading || googleLoading}>
                 {isLoading ? (
                   <>
                     <svg className="animate-spin -ml-1 mr-3 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -273,7 +235,7 @@ const SignupPage = () => {
                 ) : (
                   <>
                     <Mail className="mr-2 h-4 w-4" />
-                    Create Account
+                    Create Account with Email
                   </>
                 )}
               </Button>
@@ -287,7 +249,7 @@ const SignupPage = () => {
               Sign in
             </Link>
           </div>
-          
+
           <div className="text-xs text-center text-muted-foreground">
             By signing up, you agree to our Terms of Service and Privacy Policy.
           </div>
