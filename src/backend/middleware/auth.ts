@@ -2,15 +2,16 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { auth, db } from '../config/firebase';
-import { Client, Account, Teams } from 'appwrite';
+import { Client, Account, Teams, ID } from 'appwrite';
 
 // Initialize Appwrite for server-side operations
 const appwriteClient = new Client();
 appwriteClient
   .setEndpoint('https://fra.cloud.appwrite.io/v1')
-  .setProject('68166b45001f2c121a55')
-  .setKey('standard_b92d5fedb5ff3ef769cbed29f8e8e4db46ff3f797fd715f1d3e249041bbaf969d22c151b672e92141a9bb9001616d62acc03299994026947e77c3598efede22057f5be92fe0068df601cede753510e0c9881af8b79ddd3e9fd44d7ad6c654074453e233e8e1b83c8db7512c1afb72634eb1124c09d7ccf3bf27527626a30f726');
+  .setProject('68166b45001f2c121a55');
 
+// Create a server-side API key instance (the correct way to authenticate server-side)
+// Instead of using setKey() which is not available on Client
 const appwriteTeams = new Teams(appwriteClient);
 
 // Extend Express Request type to include user
