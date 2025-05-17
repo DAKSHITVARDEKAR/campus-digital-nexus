@@ -7,7 +7,7 @@ import {
   User
 } from 'firebase/auth';
 import { auth } from './config';
-import { Client, Account, ID } from 'appwrite';
+import { Client, Account, ID, Teams } from 'appwrite';
 
 // Initialize Appwrite
 const appwriteClient = new Client();
@@ -16,18 +16,48 @@ appwriteClient
   .setProject('68166b45001f2c121a55');
 
 const appwriteAccount = new Account(appwriteClient);
+const appwriteTeams = new Teams(appwriteClient);
 
-// Firebase auth functions
+// Firebase auth functions with Appwrite integration
 export const loginWithEmailAndPassword = async (email: string, password: string) => {
   try {
+    // First, try Firebase authentication
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     
-    // Also login to Appwrite if needed
+    // Also login to Appwrite
     try {
-      await appwriteAccount.createEmailPasswordSession(email, password);
+      await appwriteAccount.createEmailSession(email, password);
+      console.log('Successfully logged into both Firebase and Appwrite');
     } catch (appwriteError) {
       console.error('Appwrite login failed, but Firebase succeeded:', appwriteError);
-      // Continue with Firebase auth only
+      
+      // Check if it's because the user doesn't exist in Appwrite yet
+      if (appwriteError instanceof Error && appwriteError.message.includes('User not found')) {
+        try {
+          // Try to create the user in Appwrite
+          await appwriteAccount.create(
+            ID.unique(),
+            email,
+            password,
+            userCredential.user.displayName || email.split('@')[0]
+          );
+          
+          // Now try to login again
+          await appwriteAccount.createEmailSession(email, password);
+          
+          // Add to students team by default
+          await appwriteTeams.createMembership(
+            'students',
+            ID.unique(),
+            email,
+            ['member']
+          );
+          
+          console.log('Created new Appwrite user and logged in');
+        } catch (createError) {
+          console.error('Failed to create Appwrite user:', createError);
+        }
+      }
     }
     
     return userCredential.user;
@@ -36,25 +66,34 @@ export const loginWithEmailAndPassword = async (email: string, password: string)
   }
 };
 
-export const registerWithEmailAndPassword = async (email: string, password: string) => {
+export const registerWithEmailAndPassword = async (email: string, password: string, name?: string) => {
   try {
     // Create Firebase user
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     
-    // Also create Appwrite user if needed
+    // Also create Appwrite user
     try {
       await appwriteAccount.create(
         ID.unique(),
         email,
         password,
-        userCredential.user.displayName || email.split('@')[0]
+        name || userCredential.user.displayName || email.split('@')[0]
       );
       
       // Login to Appwrite
-      await appwriteAccount.createEmailPasswordSession(email, password);
+      await appwriteAccount.createEmailSession(email, password);
+      
+      // Add to students team by default
+      await appwriteTeams.createMembership(
+        'students',
+        ID.unique(),
+        email,
+        ['member']
+      );
+      
+      console.log('Successfully registered in both Firebase and Appwrite');
     } catch (appwriteError) {
       console.error('Appwrite registration failed, but Firebase succeeded:', appwriteError);
-      // Continue with Firebase auth only
     }
     
     return userCredential.user;
@@ -65,14 +104,15 @@ export const registerWithEmailAndPassword = async (email: string, password: stri
 
 export const logoutUser = async () => {
   try {
+    // Logout from Firebase
     await signOut(auth);
     
-    // Also logout from Appwrite if needed
+    // Also logout from Appwrite
     try {
       await appwriteAccount.deleteSession('current');
+      console.log('Successfully logged out from both Firebase and Appwrite');
     } catch (appwriteError) {
       console.error('Appwrite logout failed:', appwriteError);
-      // Continue with Firebase logout only
     }
   } catch (error) {
     throw error;
@@ -85,4 +125,35 @@ export const getCurrentUser = (): User | null => {
 
 export const onAuthStateChange = (callback: (user: User | null) => void) => {
   return onAuthStateChanged(auth, callback);
+};
+
+// Helper functions for Appwrite-specific features
+
+// Get user's team memberships (roles)
+export const getUserRoles = async (): Promise<string[]> => {
+  try {
+    // Make sure we're logged in to Appwrite
+    const session = await appwriteAccount.get();
+    if (!session) return [];
+    
+    // Get team memberships
+    const teamsData = await appwriteTeams.listMemberships();
+    return teamsData.memberships.map(membership => 
+      membership.teamId.replace('team:', '')
+    );
+  } catch (error) {
+    console.error('Failed to get user roles from Appwrite:', error);
+    return [];
+  }
+};
+
+// Check if user has specific role
+export const hasRole = async (role: string): Promise<boolean> => {
+  try {
+    const roles = await getUserRoles();
+    return roles.includes(role);
+  } catch (error) {
+    console.error('Failed to check role:', error);
+    return false;
+  }
 };

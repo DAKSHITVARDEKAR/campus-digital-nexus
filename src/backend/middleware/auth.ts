@@ -1,3 +1,4 @@
+
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { auth, db } from '../config/firebase';
@@ -9,8 +10,11 @@ appwriteClient
   .setEndpoint('https://fra.cloud.appwrite.io/v1')
   .setProject('68166b45001f2c121a55');
 
-// Create a server-side API key instance (the correct way to authenticate server-side)
-// Instead of using setKey() which is not available on Client
+// For server-side operations, you should use API keys stored in environment variables
+// DO NOT hardcode API keys in your code
+// Example: .setKey(process.env.APPWRITE_API_KEY);
+
+// Create a server-side Teams instance (for role/permission checks)
 const appwriteTeams = new Teams(appwriteClient);
 
 // Extend Express Request type to include user
