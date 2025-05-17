@@ -3,7 +3,7 @@ import React, { memo } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Users, Calendar, Clock } from 'lucide-react';
+import { Users, Calendar, Clock, Award } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { ElectionStatus } from '@/models/election';
 
@@ -59,14 +59,19 @@ export const ElectionCard = memo(({
   };
 
   const actionButton = getActionButton(status);
+  
+  const StatusIcon = status === 'active' ? Award : Clock;
 
   return (
-    <Card className="overflow-hidden h-full flex flex-col transition-all duration-300 hover:shadow-lg border border-gray-200 animate-fade-in">
+    <Card className="overflow-hidden h-full flex flex-col transition-all duration-300 hover:shadow-lg border border-gray-200 transform hover:-translate-y-1 animate-fade-in">
       <CardHeader className="pb-2 space-y-1">
         <div className="flex justify-between items-start gap-2">
           <CardTitle className="text-lg font-semibold line-clamp-1">{title}</CardTitle>
-          <Badge className={`${getStatusColor(status)} transition-colors`}>
-            {status === 'active' ? 'Ongoing' : status.charAt(0).toUpperCase() + status.slice(1)}
+          <Badge className={`flex items-center gap-1 ${getStatusColor(status)} transition-colors`}>
+            <StatusIcon className="h-3 w-3" />
+            <span>
+              {status === 'active' ? 'Ongoing' : status.charAt(0).toUpperCase() + status.slice(1)}
+            </span>
           </Badge>
         </div>
       </CardHeader>

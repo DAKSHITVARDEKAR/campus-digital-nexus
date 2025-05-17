@@ -2,6 +2,16 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { auth, db } from '../config/firebase';
+import { Client, Account, Teams } from 'appwrite';
+
+// Initialize Appwrite for server-side operations
+const appwriteClient = new Client();
+appwriteClient
+  .setEndpoint('https://fra.cloud.appwrite.io/v1')
+  .setProject('68166b45001f2c121a55')
+  .setKey('standard_b92d5fedb5ff3ef769cbed29f8e8e4db46ff3f797fd715f1d3e249041bbaf969d22c151b672e92141a9bb9001616d62acc03299994026947e77c3598efede22057f5be92fe0068df601cede753510e0c9881af8b79ddd3e9fd44d7ad6c654074453e233e8e1b83c8db7512c1afb72634eb1124c09d7ccf3bf27527626a30f726');
+
+const appwriteTeams = new Teams(appwriteClient);
 
 // Extend Express Request type to include user
 declare global {
@@ -75,7 +85,7 @@ export const checkRole = (roles: string[]) => {
     }
     
     try {
-      // Get user from Firestore to check current role
+      // Get user from Firestore
       const userDoc = await db.collection('users').doc(req.user.userId).get();
       
       if (!userDoc.exists) {
@@ -89,6 +99,28 @@ export const checkRole = (roles: string[]) => {
       const userData = userDoc.data();
       const userRole = userData?.role;
       
+      // Try to check Appwrite team membership if integration is active
+      try {
+        const teamMemberships = await appwriteTeams.listMemberships(req.user.userId);
+        const teamNames = teamMemberships.memberships.map(membership => membership.teamName);
+        
+        // Check if user is in any of the required teams/roles
+        const hasAppwriteRole = roles.some(role => 
+          teamNames.includes(`team:${role.toLowerCase()}`)
+        );
+        
+        if (hasAppwriteRole) {
+          // If user has role in Appwrite, allow access
+          req.user.role = userRole; // Keep Firebase role for backward compatibility
+          return next();
+        }
+      } catch (appwriteError) {
+        // Fall back to Firebase roles if Appwrite check fails
+        console.error('Appwrite team check failed, falling back to Firebase:', appwriteError);
+      }
+      
+      // If Appwrite check failed or user doesn't have role in Appwrite,
+      // check Firebase role as fallback
       if (!roles.includes(userRole)) {
         return res.status(403).json({
           success: false,
@@ -97,9 +129,8 @@ export const checkRole = (roles: string[]) => {
         });
       }
       
-      // Update req.user with the latest role from Firestore
+      // User has the required role in Firebase
       req.user.role = userRole;
-      
       next();
     } catch (error) {
       console.error('Role check error:', error);
