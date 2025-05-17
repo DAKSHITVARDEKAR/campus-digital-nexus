@@ -1,12 +1,9 @@
 
-import React from 'react';
-import { Link } from 'react-router-dom';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { AlertCircle, Users, Calendar } from 'lucide-react';
+import React, { memo } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import ElectionCard from '@/components/elections/ElectionCard';
 import { Election, ElectionStatus } from '@/models/election';
 
@@ -17,7 +14,7 @@ interface ElectionListProps {
   filter?: ElectionStatus | 'all';
 }
 
-const ElectionList: React.FC<ElectionListProps> = ({ 
+const ElectionList: React.FC<ElectionListProps> = memo(({ 
   elections, 
   loading, 
   error,
@@ -27,6 +24,26 @@ const ElectionList: React.FC<ElectionListProps> = ({
   const filteredElections = filter === 'all' 
     ? elections 
     : elections.filter(election => election.status === filter);
+  
+  // Helper to format date strings with memoization
+  const formatDateString = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric', 
+      year: 'numeric' 
+    });
+  };
+  
+  if (error) {
+    return (
+      <Alert variant="destructive" className="animate-fade-in">
+        <AlertCircle className="h-4 w-4" />
+        <AlertTitle>Error</AlertTitle>
+        <AlertDescription>{error}</AlertDescription>
+      </Alert>
+    );
+  }
   
   if (loading) {
     return (
@@ -40,8 +57,8 @@ const ElectionList: React.FC<ElectionListProps> = ({
               </div>
             </CardHeader>
             <CardContent className="py-2 flex-grow">
-              <Skeleton className="h-4 w-full mb-4" />
-              <Skeleton className="h-4 w-5/6 mb-4" />
+              <Skeleton className="h-4 w-full mb-2" />
+              <Skeleton className="h-4 w-5/6 mb-6" />
               
               <div className="grid grid-cols-2 gap-2 mb-4">
                 <div>
@@ -54,33 +71,17 @@ const ElectionList: React.FC<ElectionListProps> = ({
                 </div>
               </div>
               
-              <div className="flex items-center mt-4">
-                <Skeleton className="h-4 w-4 mr-2 rounded-full" />
-                <Skeleton className="h-4 w-28" />
-              </div>
+              <Skeleton className="h-8 w-full rounded-md mt-4" />
             </CardContent>
-            <CardFooter className="pt-2">
-              <Skeleton className="h-10 w-full rounded-md" />
-            </CardFooter>
           </Card>
         ))}
       </div>
     );
   }
   
-  if (error) {
-    return (
-      <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
-        <AlertTitle>Error</AlertTitle>
-        <AlertDescription>{error}</AlertDescription>
-      </Alert>
-    );
-  }
-  
   if (filteredElections.length === 0) {
     return (
-      <Card>
+      <Card className="animate-fade-in">
         <CardHeader>
           <CardTitle className="text-lg">No Elections Found</CardTitle>
           <CardDescription>
@@ -100,16 +101,6 @@ const ElectionList: React.FC<ElectionListProps> = ({
     );
   }
   
-  // Helper to format date strings
-  const formatDateString = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric', 
-      year: 'numeric' 
-    });
-  };
-  
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {filteredElections.map((election) => (
@@ -121,12 +112,14 @@ const ElectionList: React.FC<ElectionListProps> = ({
           startDate={formatDateString(election.startDate)}
           endDate={formatDateString(election.endDate)}
           status={election.status}
-          candidateCount={0} // We'll update this in a later version
-          votesCount={0} // We'll update this in a later version
+          candidateCount={election.positions?.length || 0}
+          votesCount={0} // This will be updated when we fetch vote counts
         />
       ))}
     </div>
   );
-};
+});
+
+ElectionList.displayName = "ElectionList";
 
 export default ElectionList;
