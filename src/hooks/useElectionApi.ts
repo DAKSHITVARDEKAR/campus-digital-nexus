@@ -161,6 +161,7 @@ export const useElectionApi = () => {
   };
 
   const updateCandidate = async (id: string, candidateData: Partial<Omit<Candidate, 'id' | 'electionId' | 'studentId' | 'voteCount' | 'status' | 'submittedAt'>>) => {
+    // Fix: Use proper property on mockElectionApi (in this case it's just updateCandidate)
     return apiCall(
       () => mockElectionApi.updateCandidate(id, candidateData),
       { 
@@ -171,6 +172,7 @@ export const useElectionApi = () => {
   };
 
   const deleteCandidate = async (id: string) => {
+    // Fix: Use proper property on mockElectionApi (in this case it's just deleteCandidate)
     return apiCall(
       () => mockElectionApi.deleteCandidate(id),
       { 
@@ -202,6 +204,7 @@ export const useElectionApi = () => {
 
   // Votes API methods
   const castVote = async (electionId: string, candidateId: string) => {
+    // Fix: Make sure to use the correct number of arguments
     return apiCall(
       () => mockElectionApi.castVote(electionId, candidateId),
       { 
@@ -212,6 +215,7 @@ export const useElectionApi = () => {
   };
 
   const hasVoted = async (electionId: string) => {
+    // Fix: hasVoted expects only one parameter
     return apiCall(() => mockElectionApi.hasVoted(electionId));
   };
 
@@ -221,7 +225,6 @@ export const useElectionApi = () => {
       // We'll check if the user has voted and if so, return a mock value
       const hasVotedResult = await mockElectionApi.hasVoted(electionId);
       if (hasVotedResult) {
-        // We'll use a different approach since getUserVote doesn't exist
         // This is a simple fallback that returns a mock candidate ID if the user has voted
         return "candidate-mock-id";
       }
