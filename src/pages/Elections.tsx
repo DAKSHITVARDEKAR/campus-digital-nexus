@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -23,12 +24,16 @@ const Elections = () => {
       try {
         setLoading(true);
         const response = await electionApi.getElections();
-        if (response?.elections) {
+        
+        // Check if response exists and has the expected structure
+        if (response) {
           // Convert string status to ElectionStatus type
-          const typedElections = response.elections.map(election => ({
-            ...election,
-            status: election.status as ElectionStatus
-          }));
+          const typedElections = Array.isArray(response) 
+            ? response.map(election => ({
+                ...election,
+                status: election.status as ElectionStatus
+              }))
+            : [];
           setElections(typedElections);
         }
         setError(null);
