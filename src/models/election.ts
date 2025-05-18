@@ -44,3 +44,28 @@ export interface ElectionResult {
   candidates: { id: string; name: string; voteCount: number }[];
   totalVotes: number;
 }
+
+// Functions for permission checking that mockElectionApi.js is trying to import
+export const getElectionPermissions = (role: string, election?: Election, isCreator = false) => {
+  return {
+    canCreate: role === 'Admin' || role === 'Faculty',
+    canRead: true,
+    canUpdate: role === 'Admin' || (role === 'Faculty' && isCreator),
+    canDelete: role === 'Admin' || (role === 'Faculty' && isCreator),
+    canVote: (role === 'Student' || role === 'Faculty') && election?.status === 'active',
+    canApproveRejectCandidates: role === 'Admin' || role === 'Faculty'
+  };
+};
+
+export const getCandidatePermissions = (role: string, candidate?: Candidate, userId?: string) => {
+  const isOwner = candidate && candidate.studentId === userId;
+  
+  return {
+    canCreate: role === 'Student',
+    canRead: true,
+    canUpdate: role === 'Admin' || isOwner,
+    canDelete: role === 'Admin' || isOwner,
+    canApprove: role === 'Admin' || role === 'Faculty',
+    canReject: role === 'Admin' || role === 'Faculty'
+  };
+};
