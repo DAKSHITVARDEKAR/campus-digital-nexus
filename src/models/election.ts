@@ -1,4 +1,5 @@
 
+// Export all interfaces and types
 export interface Election {
   id: string;
   title: string;
