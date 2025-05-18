@@ -14,7 +14,31 @@ export interface AccessibilityContextType {
   setHighContrast: React.Dispatch<React.SetStateAction<boolean>>;
   largeText: boolean;
   setLargeText: React.Dispatch<React.SetStateAction<boolean>>;
+  // Add these properties to match what's used in AccessibilitySettings
+  options: {
+    fontSize: 'normal' | 'large' | 'x-large';
+    contrast: 'normal' | 'high';
+    animations: boolean;
+    focusIndicator: boolean;
+  };
+  updateOption: <K extends keyof AccessibilityOptions>(key: K, value: AccessibilityOptions[K]) => void;
 }
+
+// Define the shape of options
+interface AccessibilityOptions {
+  fontSize: 'normal' | 'large' | 'x-large';
+  contrast: 'normal' | 'high';
+  animations: boolean;
+  focusIndicator: boolean;
+}
+
+// Default options
+const defaultOptions: AccessibilityOptions = {
+  fontSize: 'normal',
+  contrast: 'normal',
+  animations: true,
+  focusIndicator: false,
+};
 
 export const AccessibilityContext = createContext<AccessibilityContextType | undefined>(undefined);
 
@@ -25,6 +49,11 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
   const [screenReaderMode, setScreenReaderMode] = useState<boolean>(false);
   const [highContrast, setHighContrast] = useState<boolean>(false);
   const [largeText, setLargeText] = useState<boolean>(false);
+  const [options, setOptions] = useState<AccessibilityOptions>(defaultOptions);
+
+  const updateOption = <K extends keyof AccessibilityOptions>(key: K, value: AccessibilityOptions[K]) => {
+    setOptions(prev => ({ ...prev, [key]: value }));
+  };
 
   return (
     <AccessibilityContext.Provider
@@ -40,7 +69,9 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
         highContrast,
         setHighContrast,
         largeText,
-        setLargeText
+        setLargeText,
+        options,
+        updateOption
       }}
     >
       {children}

@@ -46,7 +46,7 @@ export const registerUser = async (email: string, password: string, name: string
 // Log in an existing user
 export const loginUser = async (email: string, password: string): Promise<User> => {
   try {
-    const session = await account.createEmailSession(email, password);
+    const session = await account.createSession(email, password);
     if (!session) {
       throw new Error('Session could not be created');
     }

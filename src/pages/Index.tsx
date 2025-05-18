@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { StatCard } from '@/components/dashboard/StatCard';
@@ -12,6 +11,7 @@ import { ElectionTrendChart } from '@/components/elections/ElectionTrendChart';
 import { BarChart, Calendar, FileText, List, TrendingUp, Users, Bell, Clipboard } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ElectionStatus } from '@/models/election';
 
 // Mock data
 const recentActivities = [
@@ -256,12 +256,11 @@ const Index = () => {
         <TabsContent value="services">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <ElectionCard 
-              id="1" 
               title="Student Council 2023-24" 
               description="Vote for your representatives for the upcoming academic year."
               startDate="Apr 5, 2023" 
               endDate="Apr 12, 2023" 
-              status="active" 
+              status="active" as ElectionStatus 
               candidateCount={8}
               votesCount={320}
             />

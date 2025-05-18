@@ -13,7 +13,7 @@ export interface Election {
   updatedAt: string;
 }
 
-export type ElectionStatus = 'upcoming' | 'active' | 'closed' | 'cancelled';
+export type ElectionStatus = 'upcoming' | 'active' | 'closed' | 'cancelled' | 'completed';
 
 export interface Candidate {
   id: string;

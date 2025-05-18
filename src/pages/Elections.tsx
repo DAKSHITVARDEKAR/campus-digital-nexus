@@ -7,8 +7,8 @@ import { Separator } from '@/components/ui/separator';
 import { ElectionCard } from '@/components/elections/ElectionCard';
 import ElectionList from '@/components/elections/ElectionList';
 import { useElectionApi } from '@/hooks/useElectionApi';
-import { Election } from '@/models/election';
-import { UserRoleSwitcher } from '@/components/elections/UserRoleSwitcher';
+import { Election, ElectionStatus } from '@/models/election';
+import UserRoleSwitcher from '@/components/elections/UserRoleSwitcher';
 import { useAccessibilityContext } from '@/contexts/AccessibilityContext';
 
 const Elections = () => {
@@ -24,7 +24,14 @@ const Elections = () => {
       try {
         setLoading(true);
         const response = await electionApi.getElections();
-        setElections(response?.elections || []);
+        if (response?.elections) {
+          // Convert string status to ElectionStatus type
+          const typedElections = response.elections.map(election => ({
+            ...election,
+            status: election.status as ElectionStatus
+          }));
+          setElections(typedElections);
+        }
         setError(null);
       } catch (err: any) {
         console.error('Failed to fetch elections:', err);
@@ -91,7 +98,16 @@ const Elections = () => {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filterElections(activeTab).map(election => (
-                <ElectionCard key={election.id} election={election} />
+                <ElectionCard 
+                  key={election.id} 
+                  title={election.title}
+                  description={election.description}
+                  startDate={election.startDate}
+                  endDate={election.endDate}
+                  status={election.status}
+                  candidateCount={election.positions.length}
+                  votesCount={0}
+                />
               ))}
             </div>
           )}

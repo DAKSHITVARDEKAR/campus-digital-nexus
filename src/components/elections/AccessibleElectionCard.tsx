@@ -1,11 +1,10 @@
 
-// Ensuring props are correct for AccessibleElectionCard
 import React from 'react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Calendar, Users, ExternalLink } from 'lucide-react';
 import { format } from 'date-fns';
-import { Election } from '@/models/election';
+import { Election, ElectionStatus } from '@/models/election';
 
 interface AccessibleElectionCardProps {
   data: Election;
@@ -23,6 +22,7 @@ const AccessibleElectionCard: React.FC<AccessibleElectionCardProps> = ({ data })
       case 'upcoming':
         return 'bg-blue-50 border-blue-200';
       case 'completed':
+      case 'closed':
         return 'bg-gray-50 border-gray-200';
       default:
         return 'bg-white border-gray-200';
@@ -36,6 +36,7 @@ const AccessibleElectionCard: React.FC<AccessibleElectionCardProps> = ({ data })
       case 'upcoming':
         return 'text-white bg-blue-600';
       case 'completed':
+      case 'closed':
         return 'text-white bg-gray-600';
       case 'cancelled':
         return 'text-white bg-red-600';
