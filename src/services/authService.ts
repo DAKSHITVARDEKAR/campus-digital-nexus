@@ -1,6 +1,6 @@
 
 import { Account, ID, Client, Databases } from 'appwrite';
-import { appwriteConfig } from './config';
+import { appwriteConfig } from '@/services/config'; // Fixed import path with @/ alias
 
 const client = new Client();
 

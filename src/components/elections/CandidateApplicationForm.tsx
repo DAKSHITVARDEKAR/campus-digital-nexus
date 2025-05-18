@@ -172,7 +172,7 @@ const CandidateApplicationForm: React.FC<CandidateApplicationFormProps> = ({
       </CardContent>
       <CardFooter className="flex justify-between">
         <Button variant="outline">Cancel</Button>
-        <Button type="submit" disabled={loading}>
+        <Button type="submit" disabled={loading} onClick={handleSubmit}>
           {loading ? 'Submitting...' : 'Submit Application'}
         </Button>
       </CardFooter>

@@ -4,14 +4,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
-import ElectionCard from '@/components/elections/ElectionCard';
-import { Election, ElectionStatus } from '@/models/election';
+import { Election } from '@/models/election';
+import { ElectionCard } from '@/components/elections/ElectionCard';
 
 interface ElectionListProps {
   elections: Election[];
   loading: boolean;
   error: string | null;
-  filter?: ElectionStatus | 'all';
+  filter?: string; // Changed from ElectionStatus to string
 }
 
 const ElectionList: React.FC<ElectionListProps> = memo(({ 
@@ -87,7 +87,7 @@ const ElectionList: React.FC<ElectionListProps> = memo(({
           <CardDescription>
             {filter === 'active' && "There are no active elections at the moment."}
             {filter === 'upcoming' && "There are no upcoming elections scheduled."}
-            {filter === 'completed' && "No completed elections to display."}
+            {filter === 'closed' && "No completed elections to display."}
             {filter === 'cancelled' && "No cancelled elections to display."}
             {filter === 'all' && "No elections are available."}
           </CardDescription>
@@ -106,14 +106,7 @@ const ElectionList: React.FC<ElectionListProps> = memo(({
       {filteredElections.map((election) => (
         <ElectionCard
           key={election.id}
-          id={election.id}
-          title={election.title}
-          description={election.description}
-          startDate={formatDateString(election.startDate)}
-          endDate={formatDateString(election.endDate)}
-          status={election.status}
-          candidateCount={election.positions?.length || 0}
-          votesCount={0} // This will be updated when we fetch vote counts
+          election={election}
         />
       ))}
     </div>

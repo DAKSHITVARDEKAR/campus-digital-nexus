@@ -5,13 +5,15 @@ export interface Election {
   description: string;
   startDate: string;
   endDate: string;
-  status: string;
+  status: ElectionStatus;
   positions: string[];
   isPublic: boolean;
   createdBy: string;
   createdAt: string;
   updatedAt: string;
 }
+
+export type ElectionStatus = 'upcoming' | 'active' | 'closed' | 'cancelled';
 
 export interface Candidate {
   id: string;

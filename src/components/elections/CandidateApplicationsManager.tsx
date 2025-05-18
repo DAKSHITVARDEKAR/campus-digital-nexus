@@ -209,7 +209,7 @@ const CandidateApplicationsManager: React.FC<CandidateApplicationsManagerProps> 
               {filteredCandidates.map((candidate) => (
                 <CandidateApplicationCard
                   key={candidate.id}
-                  application={candidate}
+                  candidate={candidate}
                   onView={() => handleViewDetails(candidate)}
                   isAdmin={canApproveCandidates}
                   onApprove={canApproveCandidates ? () => handleApproveCandidate(candidate) : undefined}
@@ -236,14 +236,12 @@ const CandidateApplicationsManager: React.FC<CandidateApplicationsManagerProps> 
           
           {isDetailModalOpen && selectedCandidate && (
             <CandidateApplicationDetail
-              application={selectedCandidate}
-              isOpen={isDetailModalOpen}
+              candidate={selectedCandidate}
               onClose={handleCloseModal}
-              onEdit={undefined}
-              onDelete={undefined}
               onApprove={canApproveCandidates ? () => handleApproveCandidate(selectedCandidate) : undefined}
               onReject={canApproveCandidates ? () => handleRejectCandidate(selectedCandidate) : undefined}
               isAdmin={canApproveCandidates}
+              isOpen={true}
             />
           )}
         </TabsContent>

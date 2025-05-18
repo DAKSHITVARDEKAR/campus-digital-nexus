@@ -56,4 +56,7 @@ export const useAccessibilityContext = () => {
   return context;
 };
 
+// For backward compatibility
+export const useAccessibility = useAccessibilityContext;
+
 export default AccessibilityContext;

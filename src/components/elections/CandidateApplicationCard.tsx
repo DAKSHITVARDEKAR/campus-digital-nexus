@@ -7,57 +7,65 @@ import { Candidate } from '@/models/election';
 
 export interface CandidateApplicationCardProps {
   candidate: Candidate;
+  application?: Candidate; // For backward compatibility
   onView: () => void;
   onApprove?: () => Promise<void>;
   onReject?: () => Promise<void>;
   showApproveButtons?: boolean;
+  isAdmin?: boolean;
 }
 
 const CandidateApplicationCard: React.FC<CandidateApplicationCardProps> = ({
   candidate,
+  application, // For backward compatibility
   onView,
   onApprove,
   onReject,
-  showApproveButtons = false
+  showApproveButtons = false,
+  isAdmin = false
 }) => {
+  // Use candidate prop, fallback to application prop for backward compatibility
+  const candidateData = candidate || application;
+  if (!candidateData) return null;
+  
   return (
     <Card className="w-full">
       <CardContent className="pt-6">
         <div className="flex justify-between items-start mb-4">
           <div>
-            <h3 className="font-medium">{candidate.studentName}</h3>
-            <p className="text-sm text-muted-foreground">Running for {candidate.position}</p>
+            <h3 className="font-medium">{candidateData.studentName}</h3>
+            <p className="text-sm text-muted-foreground">Running for {candidateData.position}</p>
           </div>
           <Badge
             variant={
-              candidate.status === 'approved'
-                ? 'success'
-                : candidate.status === 'rejected'
+              candidateData.status === 'approved'
+                ? 'secondary' // Changed from 'success' to 'secondary'
+                : candidateData.status === 'rejected'
                 ? 'destructive'
                 : 'outline'
             }
           >
-            {candidate.status?.charAt(0).toUpperCase() + candidate.status?.slice(1)}
+            {candidateData.status?.charAt(0).toUpperCase() + candidateData.status?.slice(1)}
           </Badge>
         </div>
 
         <div className="text-sm space-y-2">
           <div className="flex justify-between">
             <span className="text-muted-foreground">Department:</span>
-            <span>{candidate.department}</span>
+            <span>{candidateData.department}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Year:</span>
-            <span>{candidate.year}</span>
+            <span>{candidateData.year}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Submitted:</span>
-            <span>{new Date(candidate.submittedAt).toLocaleDateString()}</span>
+            <span>{new Date(candidateData.submittedAt).toLocaleDateString()}</span>
           </div>
         </div>
       </CardContent>
       <CardFooter className="flex justify-end space-x-2">
-        {showApproveButtons && candidate.status === 'pending' && (
+        {(showApproveButtons || isAdmin) && candidateData.status === 'pending' && (
           <>
             <Button size="sm" variant="destructive" onClick={onReject}>
               Reject

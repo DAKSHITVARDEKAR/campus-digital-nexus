@@ -5,7 +5,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { ElectionCard } from '@/components/elections/ElectionCard';
-import { ElectionList } from '@/components/elections/ElectionList';
+import ElectionList from '@/components/elections/ElectionList';
 import { useElectionApi } from '@/hooks/useElectionApi';
 import { Election } from '@/models/election';
 import { UserRoleSwitcher } from '@/components/elections/UserRoleSwitcher';
@@ -24,7 +24,7 @@ const Elections = () => {
       try {
         setLoading(true);
         const response = await electionApi.getElections();
-        setElections(response.elections);
+        setElections(response?.elections || []);
         setError(null);
       } catch (err: any) {
         console.error('Failed to fetch elections:', err);
