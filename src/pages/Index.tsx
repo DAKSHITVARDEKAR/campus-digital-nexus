@@ -256,13 +256,19 @@ const Index = () => {
         <TabsContent value="services">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <ElectionCard 
-              title="Student Council 2023-24" 
-              description="Vote for your representatives for the upcoming academic year."
-              startDate="Apr 5, 2023" 
-              endDate="Apr 12, 2023" 
-              status="active" as ElectionStatus 
-              candidateCount={8}
-              votesCount={320}
+              data={{
+                id: "sample-election-id",
+                title: "Student Council 2023-24",
+                description: "Vote for your representatives for the upcoming academic year.",
+                startDate: "2023-04-05T00:00:00Z",
+                endDate: "2023-04-12T00:00:00Z",
+                status: "active" as ElectionStatus,
+                positions: ["President", "Vice President", "Secretary"],
+                isPublic: true,
+                createdBy: "admin",
+                createdAt: "2023-03-15T00:00:00Z",
+                updatedAt: "2023-03-15T00:00:00Z"
+              }}
             />
             <BudgetCard 
               id="1" 

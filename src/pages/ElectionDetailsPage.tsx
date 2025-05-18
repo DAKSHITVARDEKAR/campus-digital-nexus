@@ -37,10 +37,11 @@ const ElectionDetailsPage: React.FC = () => {
       
       if (user) {
         const hasVotedResult = await hasVoted(electionId);
+        // Fixed: Use proper type conversion when potential boolean to string conversion
         if (hasVotedResult) {
-          const userVote = await getUserVote(electionId);
-          if (userVote) {
-            setVotedFor(userVote as string);
+          const userVoteResult = await getUserVote(electionId);
+          if (userVoteResult && typeof userVoteResult === 'string') {
+            setVotedFor(userVoteResult);
           }
         }
       }

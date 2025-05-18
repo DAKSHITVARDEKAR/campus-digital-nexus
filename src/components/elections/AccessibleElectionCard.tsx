@@ -21,8 +21,8 @@ const AccessibleElectionCard: React.FC<AccessibleElectionCardProps> = ({ data })
         return 'bg-green-50 border-green-200';
       case 'upcoming':
         return 'bg-blue-50 border-blue-200';
-      case 'completed':
       case 'closed':
+      case 'completed' as ElectionStatus: // Fixed: Use proper type casting
         return 'bg-gray-50 border-gray-200';
       default:
         return 'bg-white border-gray-200';
@@ -35,8 +35,8 @@ const AccessibleElectionCard: React.FC<AccessibleElectionCardProps> = ({ data })
         return 'text-white bg-green-600';
       case 'upcoming':
         return 'text-white bg-blue-600';
-      case 'completed':
       case 'closed':
+      case 'completed' as ElectionStatus: // Fixed: Use proper type casting
         return 'text-white bg-gray-600';
       case 'cancelled':
         return 'text-white bg-red-600';

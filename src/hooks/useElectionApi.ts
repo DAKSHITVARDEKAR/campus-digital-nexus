@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import mockElectionApi from '../services/mockElectionApi';
@@ -189,9 +190,10 @@ export const useElectionApi = () => {
   };
 
   // Votes API methods
+  // Fixed: Update the castVote method to pass proper parameters
   const castVote = async (electionId: string, candidateId: string) => {
     return apiCall(
-      () => mockElectionApi.castVote(electionId),
+      () => mockElectionApi.castVote(electionId, candidateId), // Fixed: Pass both parameters
       { 
         successMessage: 'Your vote has been recorded successfully',
         permissionCheck: { action: 'create', resource: 'vote' }
@@ -199,12 +201,14 @@ export const useElectionApi = () => {
     );
   };
 
+  // Fixed: Update hasVoted function to match expected parameters
   const hasVoted = async (electionId: string) => {
     return apiCall(() => mockElectionApi.hasVoted(electionId));
   };
 
+  // Fixed: Implement getUserVote correctly
   const getUserVote = async (electionId: string) => {
-    return hasVoted(electionId); // Using hasVoted as a workaround
+    return apiCall(() => mockElectionApi.hasVoted(electionId)); // Using hasVoted as a workaround
   };
 
   return {

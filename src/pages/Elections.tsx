@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -100,13 +99,7 @@ const Elections = () => {
               {filterElections(activeTab).map(election => (
                 <ElectionCard 
                   key={election.id} 
-                  title={election.title}
-                  description={election.description}
-                  startDate={election.startDate}
-                  endDate={election.endDate}
-                  status={election.status}
-                  candidateCount={election.positions.length}
-                  votesCount={0}
+                  data={election}
                 />
               ))}
             </div>
