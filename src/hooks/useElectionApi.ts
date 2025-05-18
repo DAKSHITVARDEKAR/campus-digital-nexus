@@ -161,7 +161,7 @@ export const useElectionApi = () => {
   };
 
   const updateCandidate = async (id: string, candidateData: Partial<Omit<Candidate, 'id' | 'electionId' | 'studentId' | 'voteCount' | 'status' | 'submittedAt'>>) => {
-    // Fix: Use proper property on mockElectionApi (in this case it's just updateCandidate)
+    // Fix: Directly access from mockElectionApi instead of trying to access a property
     return apiCall(
       () => mockElectionApi.updateCandidate(id, candidateData),
       { 
@@ -172,7 +172,7 @@ export const useElectionApi = () => {
   };
 
   const deleteCandidate = async (id: string) => {
-    // Fix: Use proper property on mockElectionApi (in this case it's just deleteCandidate)
+    // Fix: Directly access from mockElectionApi instead of trying to access a property
     return apiCall(
       () => mockElectionApi.deleteCandidate(id),
       { 
@@ -204,7 +204,7 @@ export const useElectionApi = () => {
 
   // Votes API methods
   const castVote = async (electionId: string, candidateId: string) => {
-    // Fix: Make sure to use the correct number of arguments
+    // Fix: Pass both arguments directly to castVote
     return apiCall(
       () => mockElectionApi.castVote(electionId, candidateId),
       { 
@@ -215,14 +215,14 @@ export const useElectionApi = () => {
   };
 
   const hasVoted = async (electionId: string) => {
-    // Fix: hasVoted expects only one parameter
+    // Fix: Pass only one argument to hasVoted
     return apiCall(() => mockElectionApi.hasVoted(electionId));
   };
 
   const getUserVote = async (electionId: string) => {
     return apiCall(async () => {
-      // Since getUserVote may not exist directly in the API, we need a fallback
-      // We'll check if the user has voted and if so, return a mock value
+      // Implementation for getUserVote
+      // Since the original mockElectionApi doesn't have getUserVote, we implement a fallback
       const hasVotedResult = await mockElectionApi.hasVoted(electionId);
       if (hasVotedResult) {
         // This is a simple fallback that returns a mock candidate ID if the user has voted
