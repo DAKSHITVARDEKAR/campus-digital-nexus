@@ -200,10 +200,12 @@ export const useElectionApi = () => {
     );
   };
 
+  // Updated to match mockElectionApi's hasVoted function signature
   const hasVoted = async (electionId: string) => {
     return apiCall(() => mockElectionApi.hasVoted(electionId));
   };
 
+  // Updated to match mockElectionApi's getUserVote function signature
   const getUserVote = async (electionId: string) => {
     return apiCall(() => mockElectionApi.getUserVote(electionId));
   };
