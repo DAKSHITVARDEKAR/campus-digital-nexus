@@ -1,21 +1,12 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { account, teams } from '../services/appwriteService';
-import { ID } from 'appwrite';
 import { useToast } from '@/hooks/use-toast';
-
-export type UserRole = 'student' | 'faculty' | 'admin';
-
-interface AppwriteUser {
-  $id: string;
-  email: string;
-  name: string;
-  roles: string[];
-}
+import { registerUser, loginUser, logoutUser, getCurrentUser, hasRole } from '@/services/authService';
+import { User, UserRole } from '@/services/authService';
 
 export const useAppwriteAuth = () => {
-  const [user, setUser] = useState<AppwriteUser | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
@@ -26,23 +17,8 @@ export const useAppwriteAuth = () => {
     const checkSession = async () => {
       try {
         setLoading(true);
-        // Try to get the current user session
-        const session = await account.get();
-        
-        if (session) {
-          // Fetch user's team memberships to determine roles
-          const userTeams = await teams.list();
-          const roles = userTeams.teams.map(team => 
-            team.$id.replace('team:', '')
-          );
-          
-          setUser({
-            $id: session.$id,
-            email: session.email,
-            name: session.name,
-            roles: roles,
-          });
-        }
+        const currentUser = await getCurrentUser();
+        setUser(currentUser);
       } catch (err) {
         console.log('No active session found');
         setUser(null);
@@ -60,38 +36,8 @@ export const useAppwriteAuth = () => {
       setLoading(true);
       setError(null);
       
-      // Create the user account
-      await account.create(
-        ID.unique(),
-        email,
-        password,
-        name
-      );
-      
-      // After registration, create email session (login)
-      await account.createEmailSession(email, password);
-      
-      // By default, add user to students team
-      // In a production app, you might want to verify their email/role first
-      try {
-        await teams.createMembership(
-          'students',  // Team ID for students
-          [],
-          email,
-          ['member']
-        );
-      } catch (teamError) {
-        console.error('Error adding user to students team:', teamError);
-      }
-      
-      // Get user details after login
-      const session = await account.get();
-      setUser({
-        $id: session.$id,
-        email: session.email,
-        name: session.name,
-        roles: ['student'], // Default role
-      });
+      const newUser = await registerUser(email, password, name);
+      setUser(newUser);
       
       toast({
         title: "Registration successful",
@@ -122,34 +68,18 @@ export const useAppwriteAuth = () => {
       setLoading(true);
       setError(null);
       
-      // Create email session
-      await account.createEmailSession(email, password);
-      
-      // Get user details
-      const session = await account.get();
-      
-      // Fetch user's team memberships to determine roles
-      const userTeams = await teams.list();
-      const roles = userTeams.teams.map(team => 
-        team.$id.replace('team:', '')
-      );
-      
-      setUser({
-        $id: session.$id,
-        email: session.email,
-        name: session.name,
-        roles: roles,
-      });
+      const loggedUser = await loginUser(email, password);
+      setUser(loggedUser);
       
       toast({
         title: "Login successful",
-        description: `Welcome back, ${session.name}!`,
+        description: `Welcome back, ${loggedUser.name}!`,
       });
       
       // Redirect based on role
-      if (roles.includes('admin')) {
+      if (loggedUser.roles.includes('admin')) {
         navigate('/admin');
-      } else if (roles.includes('faculty')) {
+      } else if (loggedUser.roles.includes('faculty')) {
         navigate('/faculty');
       } else {
         navigate('/student');
@@ -177,9 +107,7 @@ export const useAppwriteAuth = () => {
     try {
       setLoading(true);
       
-      // Delete all sessions
-      await account.deleteSession('current');
-      
+      await logoutUser();
       setUser(null);
       
       toast({
@@ -205,7 +133,7 @@ export const useAppwriteAuth = () => {
   };
 
   // Check if user has a specific role
-  const hasRole = (role: string): boolean => {
+  const checkHasRole = (role: string): boolean => {
     if (!user) return false;
     return user.roles.includes(role);
   };
@@ -239,7 +167,7 @@ export const useAppwriteAuth = () => {
     register,
     login,
     logout,
-    hasRole,
+    hasRole: checkHasRole,
     hasPermission,
   };
 };

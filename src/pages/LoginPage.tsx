@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useNavigate } from 'react-router-dom';
@@ -21,6 +20,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { useAppwriteAuth } from '@/hooks/useAppwriteAuth';
 
 const loginSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid college email address' })
@@ -33,12 +33,12 @@ const loginSchema = z.object({
 type LoginFormValues = z.infer<typeof loginSchema>;
 
 const LoginPage = () => {
-  const [isLoading, setIsLoading] = useState(false);
+  const [selectedRole, setSelectedRole] = useState('student');
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedRole, setSelectedRole] = useState('student');
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { login, loading: isLoading } = useAppwriteAuth();
   
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -49,30 +49,18 @@ const LoginPage = () => {
   });
 
   const onSubmit = async (data: LoginFormValues) => {
-    setIsLoading(true);
     setError(null);
     
     try {
-      // In a real implementation, this would call Firebase Auth
-      // const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
+      // Use our login function from useAppwriteAuth
+      const success = await login(data.email, data.password);
       
-      // Simulate auth delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Mock successful login and redirect based on role
-      toast({
-        title: "Login successful",
-        description: `Welcome back to Campus Digital Nexus as ${selectedRole}!`,
-      });
-      
-      // Redirect to the appropriate dashboard based on selected role
-      redirectToDashboard(selectedRole);
-    } catch (err) {
-      // Handle error based on Firebase error codes
-      setError('Invalid email or password. Please try again.');
+      if (!success) {
+        setError('Login failed. Please check your credentials and try again.');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to login. Please try again.');
       console.error(err);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -81,42 +69,20 @@ const LoginPage = () => {
     setError(null);
     
     try {
-      // In a real implementation, this would call Firebase Auth
-      // const userCredential = await signInWithPopup(auth, googleProvider);
-      
-      // Simulate auth delay
+      // In a real implementation, this would redirect to Google OAuth
+      // For now we just simulate it
       await new Promise(resolve => setTimeout(resolve, 1500));
       
-      // Mock successful login and redirect based on role
       toast({
-        title: "Google login successful",
-        description: `Welcome back to Campus Digital Nexus as ${selectedRole}!`,
+        title: "Google login not implemented",
+        description: "Please use email/password login for now.",
+        variant: "default"
       });
-      
-      // Redirect to the appropriate dashboard based on selected role
-      redirectToDashboard(selectedRole);
     } catch (err) {
-      // Handle error based on Firebase error codes
       setError('Google sign-in failed. Please try again or use email login.');
       console.error(err);
     } finally {
       setGoogleLoading(false);
-    }
-  };
-
-  const redirectToDashboard = (role: string) => {
-    switch(role) {
-      case 'student':
-        navigate('/student-dashboard');
-        break;
-      case 'faculty':
-        navigate('/faculty-dashboard');
-        break;
-      case 'admin':
-        navigate('/admin-dashboard');
-        break;
-      default:
-        navigate('/');
     }
   };
 

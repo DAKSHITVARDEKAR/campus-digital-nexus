@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useNavigate } from 'react-router-dom';
@@ -21,6 +20,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { useAppwriteAuth } from '@/hooks/useAppwriteAuth';
 
 const signupSchema = z.object({
   fullName: z.string().min(2, { message: 'Name must be at least 2 characters' }),
@@ -38,12 +38,12 @@ const signupSchema = z.object({
 type SignupFormValues = z.infer<typeof signupSchema>;
 
 const SignupPage = () => {
-  const [isLoading, setIsLoading] = useState(false);
+  const [selectedRole, setSelectedRole] = useState('student');
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedRole, setSelectedRole] = useState('student');
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { register, loading: isLoading } = useAppwriteAuth();
   
   const form = useForm<SignupFormValues>({
     resolver: zodResolver(signupSchema),
@@ -56,31 +56,18 @@ const SignupPage = () => {
   });
 
   const onSubmit = async (data: SignupFormValues) => {
-    setIsLoading(true);
     setError(null);
     
     try {
-      // In a real implementation, this would call Firebase Auth
-      // const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
-      // await updateProfile(userCredential.user, { displayName: data.fullName });
+      // Use our register function from useAppwriteAuth
+      const success = await register(data.email, data.password, data.fullName);
       
-      // Simulate auth delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Mock successful signup
-      toast({
-        title: "Account created",
-        description: `Your ${selectedRole} account has been created successfully. Welcome to Campus Digital Nexus!`,
-      });
-      
-      // Redirect to the login page after successful signup
-      navigate('/login');
-    } catch (err) {
-      // Handle error based on Firebase error codes
-      setError('An error occurred during sign up. Please try again.');
+      if (!success) {
+        setError('Registration failed. Please try again.');
+      }
+    } catch (err: any) {
+      setError(err.message || 'An error occurred during sign up. Please try again.');
       console.error(err);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -89,22 +76,16 @@ const SignupPage = () => {
     setError(null);
     
     try {
-      // In a real implementation, this would call Firebase Auth
-      // const userCredential = await signInWithPopup(auth, googleProvider);
-      
-      // Simulate auth delay
+      // In a real implementation, this would redirect to Google OAuth
+      // For now we just simulate it
       await new Promise(resolve => setTimeout(resolve, 1500));
       
-      // Mock successful signup
       toast({
-        title: "Account created with Google",
-        description: `Your ${selectedRole} account has been created successfully. Welcome to Campus Digital Nexus!`,
+        title: "Google signup not implemented",
+        description: "Please use email/password registration for now.",
+        variant: "default"
       });
-      
-      // Redirect to the login page after successful signup
-      navigate('/login');
     } catch (err) {
-      // Handle error based on Firebase error codes
       setError('Google sign-up failed. Please try again or use email registration.');
       console.error(err);
     } finally {
