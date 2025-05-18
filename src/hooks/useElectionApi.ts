@@ -207,7 +207,7 @@ export const useElectionApi = () => {
   // Votes API methods - fixed to match mockElectionApi's function signatures
   const castVote = async (electionId: string, candidateId: string) => {
     return apiCall(
-      // Fix: Only pass the required arguments to castVote
+      // Fix: Per the mockElectionApi.js, castVote expects these two arguments
       () => mockElectionApi.castVote(electionId, candidateId),
       { 
         successMessage: 'Your vote has been recorded successfully',
@@ -218,13 +218,13 @@ export const useElectionApi = () => {
 
   // Fixed to match mockElectionApi's hasVoted function signature
   const hasVoted = async (electionId: string) => {
-    // Fix: Only pass the required single argument
+    // Fix: Per the mockElectionApi.js, hasVoted only expects one argument (electionId)
     return apiCall(() => mockElectionApi.hasVoted(electionId));
   };
 
   // Fixed to match mockElectionApi's getUserVote function signature - this is a workaround since the function doesn't exist in mockElectionApi
   const getUserVote = async (electionId: string) => {
-    // Fix: Only pass the required single argument
+    // Fix: Implement a workaround since getUserVote doesn't exist in mockElectionApi
     return apiCall(async () => {
       // Mock implementation since getUserVote doesn't exist directly
       const hasVotedResult = await mockElectionApi.hasVoted(electionId);
