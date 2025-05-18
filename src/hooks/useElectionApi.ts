@@ -217,17 +217,16 @@ export const useElectionApi = () => {
     return apiCall(() => mockElectionApi.hasVoted(electionId));
   };
 
-  // Fixed to match mockElectionApi's getUserVote function signature
+  // Fixed to match mockElectionApi's getUserVote function signature - this is a workaround since the function doesn't exist in mockElectionApi
   const getUserVote = async (electionId: string) => {
-    return apiCall(() => {
+    return apiCall(async () => {
       // Mock implementation since getUserVote doesn't exist directly
-      return mockElectionApi.hasVoted(electionId).then(hasVoted => {
-        if (hasVoted) {
-          // Return a mock candidate ID if the user has voted
-          return Promise.resolve("candidate-mock-id");
-        }
-        return Promise.resolve(null);
-      });
+      const hasVotedResult = await mockElectionApi.hasVoted(electionId);
+      if (hasVotedResult) {
+        // Return a mock candidate ID if the user has voted
+        return "candidate-mock-id";
+      }
+      return null;
     });
   };
 

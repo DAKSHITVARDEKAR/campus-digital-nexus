@@ -610,7 +610,7 @@ export const getUserVote = async (electionId) => {
   return vote ? vote.candidateId : null;
 };
 
-// Export everything for backward compatibility
+// Export everything as a default object for backward compatibility
 export default {
   getElections,
   getElection,
