@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import mockElectionApi from '../services/mockElectionApi';
@@ -140,7 +141,12 @@ export const useElectionApi = () => {
       const parts = id.split('-');
       const electionId = parts[0];
       const allCandidates = await mockElectionApi.getCandidates(electionId);
-      return allCandidates.find(candidate => candidate.id === id);
+      // Make sure we handle the response correctly by accessing the candidates array
+      // if it returns an object with a candidates property
+      const candidatesArray = Array.isArray(allCandidates) 
+        ? allCandidates 
+        : allCandidates?.candidates || [];
+      return candidatesArray.find(candidate => candidate.id === id);
     });
   };
 
@@ -211,14 +217,12 @@ export const useElectionApi = () => {
 
   const getUserVote = async (electionId: string) => {
     return apiCall(async () => {
-      // Mock implementation since getUserVote might not exist directly in mockElectionApi
-      if (mockElectionApi.getUserVote) {
-        return mockElectionApi.getUserVote(electionId);
-      }
-      // Fallback to hasVoted implementation
+      // Since getUserVote may not exist directly in the API, we need a fallback
+      // We'll check if the user has voted and if so, return a mock value
       const hasVotedResult = await mockElectionApi.hasVoted(electionId);
       if (hasVotedResult) {
-        // Return a mock candidate ID if the user has voted
+        // We'll use a different approach since getUserVote doesn't exist
+        // This is a simple fallback that returns a mock candidate ID if the user has voted
         return "candidate-mock-id";
       }
       return null;
