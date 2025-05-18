@@ -11,7 +11,7 @@ interface ElectionListProps {
   elections: Election[];
   loading: boolean;
   error: string | null;
-  filter?: string; // Changed from ElectionStatus to string
+  filter?: string;
 }
 
 const ElectionList: React.FC<ElectionListProps> = memo(({ 
@@ -106,7 +106,7 @@ const ElectionList: React.FC<ElectionListProps> = memo(({
       {filteredElections.map((election) => (
         <ElectionCard
           key={election.id}
-          election={election}
+          data={election}
         />
       ))}
     </div>

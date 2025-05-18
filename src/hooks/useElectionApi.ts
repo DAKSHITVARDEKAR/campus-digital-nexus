@@ -190,10 +190,10 @@ export const useElectionApi = () => {
   };
 
   // Votes API methods
-  // Fixed: Update the castVote method to pass proper parameters
+  // Fixed: Update the castVote method to match the mock API expectations
   const castVote = async (electionId: string, candidateId: string) => {
     return apiCall(
-      () => mockElectionApi.castVote(electionId, candidateId), // Fixed: Pass both parameters
+      () => mockElectionApi.castVote(electionId, candidateId),
       { 
         successMessage: 'Your vote has been recorded successfully',
         permissionCheck: { action: 'create', resource: 'vote' }
