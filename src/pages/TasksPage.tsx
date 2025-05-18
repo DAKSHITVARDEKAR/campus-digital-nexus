@@ -1,63 +1,38 @@
 
-import React, { useState } from 'react';
-import { Layout } from '@/components/layout/Layout';
+import React from 'react';
+import Layout from '@/components/layout/Layout';
 import TaskList from '@/components/tasks/TaskList';
-import useTasks from '@/hooks/useTasks';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  CheckCircle2,
-  ListTodo,
-  Calendar,
-  BookOpen,
-  Building,
-  Briefcase,
-  CircleUser,
-  Filter
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
+import { useAuth } from '@/contexts/AuthContext';
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertTriangle } from 'lucide-react';
 
-const TasksPage = () => {
-  const { tasks, loading, addTask, toggleTask, deleteTask } = useTasks();
-  const [category, setCategory] = useState<string | null>(null);
+const TasksPage: React.FC = () => {
+  const { user, loading } = useAuth();
 
-  const categories = [
-    { id: 'all', name: 'All Tasks', icon: <ListTodo className="h-4 w-4" /> },
-    { id: 'academic', name: 'Academic', icon: <BookOpen className="h-4 w-4" /> },
-    { id: 'facility', name: 'Facilities', icon: <Building className="h-4 w-4" /> },
-    { id: 'career', name: 'Career', icon: <Briefcase className="h-4 w-4" /> },
-    { id: 'personal', name: 'Personal', icon: <CircleUser className="h-4 w-4" /> },
-  ];
-
-  const filteredTasks = category && category !== 'all' 
-    ? tasks.filter(task => task.category === category) 
-    : tasks;
-
-  const pendingTasks = filteredTasks.filter(task => !task.completed);
-  const completedTasks = filteredTasks.filter(task => task.completed);
-  
   if (loading) {
     return (
       <Layout>
-        <div className="space-y-6">
-          <div className="flex justify-between items-center">
-            <Skeleton className="h-8 w-64" />
-            <Skeleton className="h-10 w-32" />
+        <div className="container mx-auto p-6">
+          <div className="animate-pulse">
+            <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
+            <div className="h-64 bg-gray-200 rounded"></div>
           </div>
-          
-          <Skeleton className="h-16 w-full" />
-          
-          <div className="grid md:grid-cols-2 gap-6">
-            <Skeleton className="h-80 w-full" />
-            <Skeleton className="h-80 w-full" />
-          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (!user) {
+    return (
+      <Layout>
+        <div className="container mx-auto p-6">
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              You need to be logged in to view this page. Please log in to continue.
+            </AlertDescription>
+          </Alert>
         </div>
       </Layout>
     );
@@ -65,52 +40,51 @@ const TasksPage = () => {
 
   return (
     <Layout>
-      <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Tasks</h1>
-            <p className="text-muted-foreground">
-              Manage your personal tasks and academic responsibilities
-            </p>
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            <Select value={category || 'all'} onValueChange={setCategory}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Filter by category" />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map(cat => (
-                  <SelectItem key={cat.id} value={cat.id}>
-                    <div className="flex items-center">
-                      {cat.icon}
-                      <span className="ml-2">{cat.name}</span>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+      <div className="container mx-auto p-6">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold mb-2">Personal Task Management</h1>
+          <p className="text-gray-600">
+            Keep track of your academic tasks, deadlines, and personal goals.
+          </p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-6">
-          <TaskList
-            title="Pending Tasks"
-            description="Tasks that need your attention"
-            tasks={pendingTasks}
-            onTaskToggle={toggleTask}
-            onTaskAdd={addTask}
-            onTaskDelete={deleteTask}
-          />
-          
-          <TaskList
-            title="Completed Tasks"
-            description="Tasks you have finished"
-            tasks={completedTasks}
-            onTaskToggle={toggleTask}
-            onTaskAdd={addTask}
-            onTaskDelete={deleteTask}
-          />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2">
+            <TaskList />
+          </div>
+
+          <div className="lg:col-span-1">
+            <Card>
+              <CardHeader>
+                <CardTitle>Task Tips</CardTitle>
+                <CardDescription>Ways to stay organized and productive</CardDescription>
+              </CardHeader>
+              <div className="p-6">
+                <ul className="space-y-3">
+                  <li className="flex items-start">
+                    <span className="bg-primary/10 text-primary rounded-full w-6 h-6 flex items-center justify-center mr-2 mt-0.5">1</span>
+                    <span>Break down large tasks into smaller, manageable items</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="bg-primary/10 text-primary rounded-full w-6 h-6 flex items-center justify-center mr-2 mt-0.5">2</span>
+                    <span>Use priority levels to focus on what matters most</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="bg-primary/10 text-primary rounded-full w-6 h-6 flex items-center justify-center mr-2 mt-0.5">3</span>
+                    <span>Set realistic due dates for your assignments</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="bg-primary/10 text-primary rounded-full w-6 h-6 flex items-center justify-center mr-2 mt-0.5">4</span>
+                    <span>Create reminders for important deadlines</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="bg-primary/10 text-primary rounded-full w-6 h-6 flex items-center justify-center mr-2 mt-0.5">5</span>
+                    <span>Celebrate completing tasks, even small ones</span>
+                  </li>
+                </ul>
+              </div>
+            </Card>
+          </div>
         </div>
       </div>
     </Layout>

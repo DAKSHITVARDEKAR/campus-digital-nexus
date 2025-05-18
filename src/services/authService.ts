@@ -1,7 +1,6 @@
 
 import { account, teams } from './appwriteService';
 import { ID } from 'appwrite';
-import { useToast } from '@/hooks/use-toast';
 
 export type UserRole = 'student' | 'faculty' | 'admin';
 

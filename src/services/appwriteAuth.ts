@@ -1,163 +1,175 @@
 
-import { account, teams } from './appwriteService';
-import { ID } from 'appwrite';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useToast } from '@/hooks/use-toast';
+import { registerUser, loginUser, logoutUser, getCurrentUser, hasRole } from '@/services/authService';
+import { User, UserRole } from '@/services/authService';
 
-export type UserRole = 'student' | 'faculty' | 'admin';
+export const useAppwriteAuth = () => {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
+  const navigate = useNavigate();
 
-export interface User {
-  $id: string;
-  email: string;
-  name: string;
-  roles: string[];
-}
+  // Check current session on load
+  useEffect(() => {
+    const checkSession = async () => {
+      try {
+        setLoading(true);
+        const currentUser = await getCurrentUser();
+        setUser(currentUser);
+      } catch (err) {
+        console.log('No active session found');
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    checkSession();
+  }, []);
 
-// Register a new user
-export const registerUser = async (
-  email: string, 
-  password: string, 
-  name: string
-): Promise<User> => {
-  try {
-    // Create user account
-    const newUser = await account.create(
-      ID.unique(),
-      email,
-      password,
-      name
-    );
-
-    // Log in the user
-    await account.createSession(email, password);
-
-    // Add to students team by default
+  // Register new user
+  const register = async (email: string, password: string, name: string) => {
     try {
-      // Fixed: Pass 'students' as a string, not an array
-      await teams.createMembership(
-        'students', // teamId
-        email, // email
-        [], // roles
-        'member' // status
-      );
-    } catch (teamError) {
-      console.error('Error adding user to students team:', teamError);
+      setLoading(true);
+      setError(null);
+      
+      const newUser = await registerUser(email, password, name);
+      setUser(newUser);
+      
+      toast({
+        title: "Registration successful",
+        description: "Welcome to Campus-Nexus!",
+      });
+      
+      navigate('/student');
+      return true;
+    } catch (err: any) {
+      console.error('Registration error:', err);
+      setError(err.message || 'Failed to register');
+      
+      toast({
+        title: "Registration failed",
+        description: err.message || 'An error occurred during registration',
+        variant: "destructive",
+      });
+      
+      return false;
+    } finally {
+      setLoading(false);
     }
+  };
 
-    // Get user session
-    const userAccount = await account.get();
-    
-    // Get user's team memberships to determine roles
-    const userTeams = await teams.list();
-    const roles = userTeams.teams.map(team => 
-      team.$id.replace('team:', '')
-    );
-    
-    return {
-      $id: userAccount.$id,
-      email: userAccount.email,
-      name: userAccount.name,
-      roles: roles
-    };
-  } catch (error) {
-    console.error('Registration error:', error);
-    throw error;
-  }
-};
+  // Login user
+  const login = async (email: string, password: string) => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const loggedUser = await loginUser(email, password);
+      setUser(loggedUser);
+      
+      toast({
+        title: "Login successful",
+        description: `Welcome back, ${loggedUser.name}!`,
+      });
+      
+      // Redirect based on role
+      if (loggedUser.roles.includes('admin')) {
+        navigate('/admin');
+      } else if (loggedUser.roles.includes('faculty')) {
+        navigate('/faculty');
+      } else {
+        navigate('/student');
+      }
+      
+      return true;
+    } catch (err: any) {
+      console.error('Login error:', err);
+      setError(err.message || 'Failed to login');
+      
+      toast({
+        title: "Login failed",
+        description: err.message || 'Invalid email or password',
+        variant: "destructive",
+      });
+      
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
 
-// Login user
-export const loginUser = async (
-  email: string, 
-  password: string
-): Promise<User> => {
-  try {
-    // Create session
-    await account.createSession(email, password);
-    
-    // Get user data
-    const userAccount = await account.get();
-    
-    // Get user's team memberships
-    const userTeams = await teams.list();
-    const roles = userTeams.teams.map(team => 
-      team.$id.replace('team:', '')
-    );
-    
-    return {
-      $id: userAccount.$id,
-      email: userAccount.email,
-      name: userAccount.name,
-      roles: roles
-    };
-  } catch (error) {
-    console.error('Login error:', error);
-    throw error;
-  }
-};
+  // Logout user
+  const logout = async () => {
+    try {
+      setLoading(true);
+      
+      await logoutUser();
+      setUser(null);
+      
+      toast({
+        title: "Logged out",
+        description: "You have been logged out successfully",
+      });
+      
+      navigate('/login');
+      return true;
+    } catch (err: any) {
+      console.error('Logout error:', err);
+      
+      toast({
+        title: "Logout failed",
+        description: err.message || 'An error occurred during logout',
+        variant: "destructive",
+      });
+      
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
 
-// Logout user
-export const logoutUser = async (): Promise<void> => {
-  try {
-    await account.deleteSession('current');
-  } catch (error) {
-    console.error('Logout error:', error);
-    throw error;
-  }
-};
+  // Check if user has a specific role
+  const checkHasRole = (role: string): boolean => {
+    if (!user) return false;
+    return user.roles.includes(role);
+  };
 
-// Get current user
-export const getCurrentUser = async (): Promise<User | null> => {
-  try {
-    const userAccount = await account.get();
+  // Check if user has permission for a specific action on a resource
+  const hasPermission = (action: string, resource: string, resourceId?: string): boolean => {
+    if (!user) return false;
     
-    // Get user's team memberships
-    const userTeams = await teams.list();
-    const roles = userTeams.teams.map(team => 
-      team.$id.replace('team:', '')
-    );
+    // Admin has all permissions
+    if (user.roles.includes('admin')) return true;
     
-    return {
-      $id: userAccount.$id,
-      email: userAccount.email,
-      name: userAccount.name,
-      roles: roles
-    };
-  } catch (error) {
-    // Not logged in
-    return null;
-  }
-};
-
-// Get user's role memberships
-export const getUserRoles = async (): Promise<string[]> => {
-  try {
-    const userTeams = await teams.list();
-    return userTeams.teams.map(team => 
-      team.$id.replace('team:', '')
-    );
-  } catch (error) {
-    console.error('Failed to get user roles:', error);
-    return [];
-  }
-};
-
-// Check if user has a specific role
-export const hasRole = async (role: string): Promise<boolean> => {
-  try {
-    const roles = await getUserRoles();
-    return roles.includes(role);
-  } catch (error) {
-    console.error('Failed to check role:', error);
+    // Check specific permissions
+    if (action === 'manage' && resource === 'election') {
+      return user.roles.includes('election-committee') || user.roles.includes('admin');
+    }
+    
+    if (action === 'vote' && resource === 'election') {
+      // Everyone can vote
+      return true;
+    }
+    
+    // Add more permission checks as needed
+    
     return false;
-  }
+  };
+
+  return {
+    user,
+    loading,
+    error,
+    register,
+    login,
+    logout,
+    hasRole: checkHasRole,
+    hasPermission,
+  };
 };
 
-// Mock auth for development (to be removed in production)
-export const mockAuth = {
-  getUserRoles: () => ['student'],
-  hasRole: (role: string) => role === 'student',
-  getCurrentUser: () => ({
-    $id: 'mock-user',
-    email: 'student@example.com',
-    name: 'Mock Student',
-    roles: ['student']
-  })
-};
+export default useAppwriteAuth;

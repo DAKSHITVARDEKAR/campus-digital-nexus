@@ -36,7 +36,7 @@ export interface Vote {
   candidateId: string;
   userId: string;
   timestamp: string;
-  voterId?: string; // Added for compatibility
+  voterId?: string;
 }
 
 // Helper functions for permission checks

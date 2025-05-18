@@ -28,6 +28,7 @@ export const INTEGRITY_RECORDS_COLLECTION = 'integrityRecords';
 export const BUDGETS_COLLECTION = 'budgets';
 export const EXPENSE_RECORDS_COLLECTION = 'expenseRecords';
 export const ACHIEVEMENTS_COLLECTION = 'achievements';
+export const TASKS_COLLECTION = 'tasks';
 
 // Storage bucket IDs
 export const PROFILE_IMAGES_BUCKET = 'profile-images';
@@ -65,7 +66,7 @@ export const mapCandidateFromDocument = (doc: any): Candidate => {
     year: doc.year || '',
     status: doc.status || 'pending',
     voteCount: doc.voteCount || 0,
-    submittedAt: doc.submittedAt || new Date().toISOString() // Added missing property
+    submittedAt: doc.submittedAt || new Date().toISOString()
   };
 };
 

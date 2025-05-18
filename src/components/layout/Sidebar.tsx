@@ -4,198 +4,172 @@ import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { 
   Home, 
-  BarChart, 
   Calendar, 
   FileText, 
-  Users, 
-  List,
-  Settings,
-  Mail,
-  Shield,
+  User, 
+  Award, 
+  Settings, 
+  Vote, 
+  AlertTriangle, 
+  DollarSign, 
   BookOpen,
-  Layers,
-  Activity,
+  Bell,
   CheckSquare
 } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
+import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
 
-type NavItem = {
-  name: string;
-  to: string;
+interface SidebarProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
+interface NavItem {
+  path: string;
+  label: string;
   icon: React.ReactNode;
   roles?: string[];
-  badge?: string;
-};
+}
 
-const commonNavItems: NavItem[] = [
-  { name: 'Dashboard', to: '/', icon: <Home className="h-5 w-5" /> },
-  { name: 'Tasks', to: '/tasks', icon: <CheckSquare className="h-5 w-5" /> },
-  { name: 'Elections', to: '/elections', icon: <Users className="h-5 w-5" /> },
-  { name: 'Budget', to: '/budget', icon: <BarChart className="h-5 w-5" /> },
-  { name: 'Facilities', to: '/facilities', icon: <Calendar className="h-5 w-5" /> },
-  { name: 'Applications', to: '/applications', icon: <FileText className="h-5 w-5" /> },
-  { name: 'Complaints', to: '/complaints', icon: <List className="h-5 w-5" /> },
-];
-
-const roleSpecificNavItems: NavItem[] = [
-  // Student specific
-  { name: 'My Bookings', to: '/facilities/my-bookings', icon: <Calendar className="h-5 w-5" />, roles: ['student'] },
-  { name: 'My Courses', to: '/courses', icon: <BookOpen className="h-5 w-5" />, roles: ['student'] },
-  
-  // Faculty specific
-  { name: 'Board Review', to: '/faculty/board-review', icon: <Shield className="h-5 w-5" />, roles: ['faculty'], badge: 'New' },
-  { name: 'Department Exams', to: '/faculty/exams', icon: <FileText className="h-5 w-5" />, roles: ['faculty'] },
-  { name: 'Report Incident', to: '/faculty/report-incident', icon: <Activity className="h-5 w-5" />, roles: ['faculty'] },
-  
-  // Admin specific
-  { name: 'User Management', to: '/admin/users', icon: <Users className="h-5 w-5" />, roles: ['admin'] },
-  { name: 'System Logs', to: '/admin/logs', icon: <Layers className="h-5 w-5" />, roles: ['admin'] },
-  { name: 'Announcements', to: '/admin/announcements', icon: <Mail className="h-5 w-5" />, roles: ['admin'] },
-];
-
-export const Sidebar = ({ isOpen, setIsOpen }: { isOpen: boolean; setIsOpen: (open: boolean) => void }) => {
+const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
+  const { user, logout } = useAuth();
   const location = useLocation();
   
-  // Determine current user role - this would come from auth context in a real app
-  const getCurrentRole = () => {
-    if (location.pathname.includes('/faculty')) return 'faculty';
-    if (location.pathname.includes('/admin')) return 'admin';
-    if (location.pathname.includes('/student')) return 'student';
-    return 'student'; // Default to student if can't determine
-  };
-  
-  const currentRole = getCurrentRole();
-  
-  // Filter nav items based on role
-  const filteredRoleItems = roleSpecificNavItems.filter(item => 
-    !item.roles || item.roles.includes(currentRole)
-  );
-  
-  return (
-    <>
-      {/* Mobile backdrop */}
-      {isOpen && (
-        <div 
-          className="fixed inset-0 z-40 bg-black/50 md:hidden" 
-          onClick={() => setIsOpen(false)}
-        />
-      )}
+  const navItems: NavItem[] = [
+    {
+      path: user?.role === 'Admin' ? '/admin' : user?.role === 'Faculty' ? '/faculty' : '/student',
+      label: 'Dashboard',
+      icon: <Home className="h-5 w-5" />,
+    },
+    {
+      path: '/elections',
+      label: 'Elections',
+      icon: <Vote className="h-5 w-5" />,
+    },
+    {
+      path: '/facilities',
+      label: 'Facilities',
+      icon: <Calendar className="h-5 w-5" />,
+    },
+    {
+      path: '/my-bookings',
+      label: 'My Bookings',
+      icon: <BookOpen className="h-5 w-5" />,
+    },
+    {
+      path: '/applications',
+      label: 'Applications',
+      icon: <FileText className="h-5 w-5" />,
+    },
+    {
+      path: '/cheating-records',
+      label: 'Integrity Records',
+      icon: <AlertTriangle className="h-5 w-5" />,
+    },
+    {
+      path: '/complaints',
+      label: 'Complaints',
+      icon: <AlertTriangle className="h-5 w-5" />,
+    },
+    {
+      path: '/budget',
+      label: 'Budget',
+      icon: <DollarSign className="h-5 w-5" />,
+    },
+    {
+      path: '/achievements',
+      label: 'Achievements',
+      icon: <Award className="h-5 w-5" />,
+    },
+    {
+      path: '/tasks',
+      label: 'Tasks',
+      icon: <CheckSquare className="h-5 w-5" />,
+    },
+    {
+      path: '/notifications',
+      label: 'Notifications',
+      icon: <Bell className="h-5 w-5" />,
+    },
+    {
+      path: '/profile',
+      label: 'Profile',
+      icon: <User className="h-5 w-5" />,
+    },
+    {
+      path: '/settings',
+      label: 'Settings',
+      icon: <Settings className="h-5 w-5" />,
+    },
+  ];
 
-      {/* Sidebar */}
-      <aside
-        className={cn(
-          "fixed top-0 left-0 z-40 w-64 h-screen pt-16 transition-transform bg-white border-r border-gray-200 md:translate-x-0",
-          isOpen ? "translate-x-0" : "-translate-x-full"
-        )}
-      >
-        <div className="h-full px-3 pb-4 overflow-y-auto">
-          <div className="pt-4 mb-4">
-            <div className="px-3 py-2">
-              <div className="text-xs uppercase text-gray-500 font-semibold tracking-wider">
-                {currentRole.charAt(0).toUpperCase() + currentRole.slice(1)} Portal
-              </div>
-            </div>
-          </div>
-          
+  if (!user) {
+    return null;
+  }
+
+  return (
+    <aside
+      className={cn(
+        "fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 transition-all duration-300 transform shadow-lg lg:shadow-none lg:translate-x-0",
+        isOpen ? "translate-x-0" : "-translate-x-full"
+      )}
+    >
+      <div className="flex flex-col h-full">
+        <div className="px-4 py-6 flex items-center justify-center border-b">
+          <Link to="/" className="flex items-center space-x-2">
+            <span className="text-xl font-bold text-primary">Campus-Nexus</span>
+          </Link>
+        </div>
+
+        <nav className="flex-1 px-4 py-6 overflow-y-auto">
           <ul className="space-y-2">
-            {commonNavItems.map((item) => (
-              <li key={item.name}>
-                <Link
-                  to={item.to}
-                  className={cn(
-                    "flex items-center p-2 text-base font-normal rounded-lg group",
-                    location.pathname === item.to || location.pathname.startsWith(`${item.to}/`)
-                      ? "bg-primary text-white"
-                      : "text-gray-900 hover:bg-gray-100"
-                  )}
-                >
-                  {item.icon}
-                  <span className="ml-3">{item.name}</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-          
-          {filteredRoleItems.length > 0 && (
-            <>
-              <Separator className="my-4" />
-              
-              <div className="px-3 py-2">
-                <div className="text-xs uppercase text-gray-500 font-semibold tracking-wider">
-                  Role Specific
-                </div>
-              </div>
-              
-              <ul className="space-y-2">
-                {filteredRoleItems.map((item) => (
-                  <li key={item.name}>
-                    <Link
-                      to={item.to}
-                      className={cn(
-                        "flex items-center p-2 text-base font-normal rounded-lg group",
-                        location.pathname === item.to || location.pathname.startsWith(`${item.to}/`)
-                          ? "bg-primary text-white"
-                          : "text-gray-900 hover:bg-gray-100"
-                      )}
-                    >
-                      {item.icon}
-                      <span className="ml-3 flex-1">{item.name}</span>
-                      {item.badge && (
-                        <Badge className="ml-auto bg-blue-100 text-blue-800 hover:bg-blue-200 border-blue-200">
-                          {item.badge}
-                        </Badge>
-                      )}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
-          
-          <div className="pt-4 mt-4 border-t border-gray-200">
-            <ul className="space-y-2">
-              <li>
-                <Link
-                  to="/settings"
-                  className={cn(
-                    "flex items-center p-2 text-base font-normal rounded-lg",
-                    location.pathname === "/settings"
-                      ? "bg-primary text-white"
-                      : "text-gray-900 hover:bg-gray-100"
-                  )}
-                >
-                  <Settings className="h-5 w-5" />
-                  <span className="ml-3">Settings</span>
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/login"
-                  className="flex items-center p-2 text-base font-normal text-gray-900 rounded-lg hover:bg-gray-100"
-                >
-                  <svg 
-                    className="h-5 w-5" 
-                    xmlns="http://www.w3.org/2000/svg" 
-                    fill="none" 
-                    viewBox="0 0 24 24" 
-                    stroke="currentColor"
+            {navItems.map((item) => {
+              // Skip items that require specific roles if user doesn't have them
+              if (item.roles && !item.roles.includes(user.role)) {
+                return null;
+              }
+
+              const isActive = location.pathname === item.path;
+
+              return (
+                <li key={item.path}>
+                  <Link
+                    to={item.path}
+                    className={cn(
+                      "flex items-center px-4 py-2.5 text-sm font-medium rounded-md",
+                      isActive
+                        ? "bg-primary text-white"
+                        : "text-gray-700 hover:bg-primary-foreground"
+                    )}
                   >
-                    <path 
-                      strokeLinecap="round" 
-                      strokeLinejoin="round" 
-                      strokeWidth={2} 
-                      d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" 
-                    />
-                  </svg>
-                  <span className="ml-3">Log Out</span>
-                </Link>
-              </li>
-            </ul>
+                    {item.icon}
+                    <span className="ml-3">{item.label}</span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+
+        <div className="p-4 border-t">
+          <div className="flex flex-col space-y-2">
+            <div className="text-sm font-medium text-gray-900">
+              {user.name}
+            </div>
+            <div className="text-xs text-gray-500 truncate">
+              {user.email}
+            </div>
+            <Button
+              variant="outline"
+              className="mt-2 w-full"
+              onClick={() => logout()}
+            >
+              Sign Out
+            </Button>
           </div>
         </div>
-      </aside>
-    </>
+      </div>
+    </aside>
   );
 };
 

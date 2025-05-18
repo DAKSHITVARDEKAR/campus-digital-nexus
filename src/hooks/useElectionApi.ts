@@ -1,9 +1,17 @@
 
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import mockElectionApi, { ApiError } from '../services/mockElectionApi';
+import mockElectionApi from '../services/mockElectionApi';
 import { Election, Candidate } from '../models/election';
 import { useAuth } from '../contexts/AuthContext';
+
+// Custom error class
+class ApiError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
 
 // Enhanced hook for handling API calls with auth integration
 export const useElectionApi = () => {
@@ -81,16 +89,16 @@ export const useElectionApi = () => {
 
   // Elections API methods
   const getElections = async () => {
-    return apiCall(() => mockElectionApi.elections.getElections());
+    return apiCall(() => mockElectionApi.getElections());
   };
 
   const getElection = async (id: string) => {
-    return apiCall(() => mockElectionApi.elections.getElection(id));
+    return apiCall(() => mockElectionApi.getElection(id));
   };
 
   const createElection = async (electionData: Omit<Election, 'id' | 'createdBy' | 'createdAt' | 'updatedAt'>) => {
     return apiCall(
-      () => mockElectionApi.elections.createElection(electionData),
+      () => mockElectionApi.createElection(electionData),
       { 
         successMessage: 'Election created successfully',
         permissionCheck: { action: 'create', resource: 'election' }
@@ -100,7 +108,7 @@ export const useElectionApi = () => {
 
   const updateElection = async (id: string, electionData: Partial<Omit<Election, 'id' | 'createdBy' | 'createdAt'>>) => {
     return apiCall(
-      () => mockElectionApi.elections.updateElection(id, electionData),
+      () => mockElectionApi.updateElection(id, electionData),
       { 
         successMessage: 'Election updated successfully',
         permissionCheck: { action: 'update', resource: 'election', resourceId: id }
@@ -110,7 +118,7 @@ export const useElectionApi = () => {
 
   const deleteElection = async (id: string) => {
     return apiCall(
-      () => mockElectionApi.elections.deleteElection(id),
+      () => mockElectionApi.deleteElection(id),
       { 
         successMessage: 'Election deleted successfully',
         permissionCheck: { action: 'delete', resource: 'election', resourceId: id }
@@ -119,21 +127,21 @@ export const useElectionApi = () => {
   };
 
   const getElectionResults = async (id: string) => {
-    return apiCall(() => mockElectionApi.elections.getElectionResults(id));
+    return apiCall(() => mockElectionApi.getElectionResults(id));
   };
 
   // Candidates API methods
   const getCandidates = async (electionId: string) => {
-    return apiCall(() => mockElectionApi.candidates.getCandidates(electionId));
+    return apiCall(() => mockElectionApi.getCandidates(electionId));
   };
 
   const getCandidate = async (id: string) => {
-    return apiCall(() => mockElectionApi.candidates.getCandidate(id));
+    return apiCall(() => mockElectionApi.getCandidate(id));
   };
 
   const createCandidate = async (candidateData: Omit<Candidate, 'id' | 'voteCount' | 'status' | 'submittedAt'>) => {
     return apiCall(
-      () => mockElectionApi.candidates.createCandidate(candidateData),
+      () => mockElectionApi.createCandidate(candidateData),
       { 
         successMessage: 'Candidate application submitted successfully',
         permissionCheck: { action: 'create', resource: 'candidate' }
@@ -143,7 +151,7 @@ export const useElectionApi = () => {
 
   const updateCandidate = async (id: string, candidateData: Partial<Omit<Candidate, 'id' | 'electionId' | 'studentId' | 'voteCount' | 'status' | 'submittedAt'>>) => {
     return apiCall(
-      () => mockElectionApi.candidates.updateCandidate(id, candidateData),
+      () => mockElectionApi.updateCandidate(id, candidateData),
       { 
         successMessage: 'Candidate application updated successfully',
         permissionCheck: { action: 'update', resource: 'candidate', resourceId: id }
@@ -153,7 +161,7 @@ export const useElectionApi = () => {
 
   const deleteCandidate = async (id: string) => {
     return apiCall(
-      () => mockElectionApi.candidates.deleteCandidate(id),
+      () => mockElectionApi.deleteCandidate(id),
       { 
         successMessage: 'Candidate application deleted successfully',
         permissionCheck: { action: 'delete', resource: 'candidate', resourceId: id }
@@ -163,7 +171,7 @@ export const useElectionApi = () => {
 
   const approveCandidate = async (id: string) => {
     return apiCall(
-      () => mockElectionApi.candidates.approveCandidate(id),
+      () => mockElectionApi.approveCandidate(id),
       { 
         successMessage: 'Candidate application approved',
         permissionCheck: { action: 'approve', resource: 'candidate', resourceId: id }
@@ -173,7 +181,7 @@ export const useElectionApi = () => {
 
   const rejectCandidate = async (id: string) => {
     return apiCall(
-      () => mockElectionApi.candidates.rejectCandidate(id),
+      () => mockElectionApi.rejectCandidate(id),
       { 
         successMessage: 'Candidate application rejected',
         permissionCheck: { action: 'reject', resource: 'candidate', resourceId: id }
@@ -184,7 +192,7 @@ export const useElectionApi = () => {
   // Votes API methods
   const castVote = async (electionId: string, candidateId: string) => {
     return apiCall(
-      () => mockElectionApi.votes.castVote(electionId, candidateId),
+      () => mockElectionApi.castVote(electionId, candidateId),
       { 
         successMessage: 'Your vote has been recorded successfully',
         permissionCheck: { action: 'create', resource: 'vote' }
@@ -193,11 +201,11 @@ export const useElectionApi = () => {
   };
 
   const hasVoted = async (electionId: string) => {
-    return apiCall(() => mockElectionApi.votes.hasVoted(electionId));
+    return apiCall(() => mockElectionApi.hasVoted(electionId));
   };
 
   const getUserVote = async (electionId: string) => {
-    return apiCall(() => mockElectionApi.votes.getUserVote(electionId));
+    return apiCall(() => mockElectionApi.getUserVote(electionId));
   };
 
   return {
