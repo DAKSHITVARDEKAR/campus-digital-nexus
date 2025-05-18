@@ -1,108 +1,130 @@
 
-import React, { useEffect, useState } from 'react';
-import Layout from '@/components/layout/Layout';
-import ElectionList from '@/components/elections/ElectionList';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus, AlertCircle } from 'lucide-react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+import { ElectionCard } from '@/components/elections/ElectionCard';
+import { ElectionList } from '@/components/elections/ElectionList';
+import { useElectionApi } from '@/hooks/useElectionApi';
 import { Election } from '@/models/election';
-import { useAuth } from '@/contexts/AuthContext';
-import useElectionApi from '@/hooks/useElectionApi';
-import AccessibleElectionCard from '@/components/elections/AccessibleElectionCard';
-import { AccessibilityContext } from '@/contexts/AccessibilityContext';
-import UserRoleSwitcher from '@/components/elections/UserRoleSwitcher';
+import { UserRoleSwitcher } from '@/components/elections/UserRoleSwitcher';
+import { useAccessibilityContext } from '@/contexts/AccessibilityContext';
 
-const Elections: React.FC = () => {
+const Elections = () => {
   const [elections, setElections] = useState<Election[]>([]);
-  const { user, hasPermission } = useAuth();
-  const { loading, error, getElections } = useElectionApi();
-  const { highContrast, largeText } = React.useContext(AccessibilityContext);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState('all');
+  const { highContrast, largeText } = useAccessibilityContext();
+  const electionApi = useElectionApi();
 
   useEffect(() => {
     const fetchElections = async () => {
-      const result = await getElections();
-      if (result && Array.isArray(result)) {
-        setElections(result as Election[]);
+      try {
+        setLoading(true);
+        const response = await electionApi.getElections();
+        setElections(response.elections);
+        setError(null);
+      } catch (err: any) {
+        console.error('Failed to fetch elections:', err);
+        setError('Failed to load elections. Please try again later.');
+      } finally {
+        setLoading(false);
       }
     };
 
     fetchElections();
-  }, [getElections]);
+  }, []);
 
-  const isElectionAdmin = user && hasPermission('manage', 'election');
+  const filterElections = (status: string) => {
+    if (status === 'all') {
+      return elections;
+    }
+    return elections.filter(election => election.status.toLowerCase() === status.toLowerCase());
+  };
+
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+  };
 
   return (
-    <Layout>
-      <div className="container mx-auto p-6">
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h1 className={`text-3xl font-bold ${largeText ? 'text-4xl' : ''}`}>Student Council Elections</h1>
-            <p className={`text-gray-600 mt-1 ${largeText ? 'text-lg' : ''}`}>
-              View upcoming and active elections, cast your vote, and see results
-            </p>
-          </div>
-          {isElectionAdmin && (
-            <Button>
-              <Plus size={16} className="mr-1" />
-              Create Election
-            </Button>
-          )}
+    <div className="space-y-6">
+      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+        <div>
+          <h1 className={`text-3xl font-bold tracking-tight ${largeText ? 'text-4xl' : ''}`}>Student Elections</h1>
+          <p className="text-muted-foreground">View and participate in ongoing campus elections</p>
         </div>
-        
-        <div className="mb-6">
+
+        <div className="flex flex-col sm:flex-row gap-3">
           <UserRoleSwitcher />
+          <Button variant="outline">Election History</Button>
+          <Button>View My Votes</Button>
         </div>
-        
-        {error && (
-          <Alert variant="destructive" className="mb-6">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-        
-        {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="border rounded-lg p-6 animate-pulse">
-                <div className="h-7 bg-gray-200 rounded w-3/4 mb-3"></div>
-                <div className="h-4 bg-gray-200 rounded w-1/2 mb-6"></div>
-                <div className="h-4 bg-gray-200 rounded w-full mb-2"></div>
-                <div className="h-4 bg-gray-200 rounded w-5/6 mb-6"></div>
-                <div className="flex justify-between items-center">
-                  <div className="h-8 bg-gray-200 rounded w-24"></div>
-                  <div className="h-8 bg-gray-200 rounded w-24"></div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : elections.length > 0 ? (
-          <div>
-            {highContrast ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {elections.map(election => (
-                  <AccessibleElectionCard key={election.id} data={election} />
-                ))}
-              </div>
-            ) : (
-              <ElectionList elections={elections} loading={loading} error={error} />
-            )}
-          </div>
-        ) : (
-          <div className="text-center py-12">
-            <h3 className="text-xl font-semibold mb-2">No elections available</h3>
-            <p className="text-gray-600 mb-6">
-              There are currently no upcoming or active elections.
-            </p>
-            {isElectionAdmin && (
-              <Button>
-                <Plus size={16} className="mr-1" />
-                Create New Election
-              </Button>
-            )}
-          </div>
-        )}
       </div>
-    </Layout>
+
+      <Separator />
+
+      <Tabs defaultValue="all" onValueChange={handleTabChange} className="w-full">
+        <TabsList className="w-full sm:w-auto">
+          <TabsTrigger value="all">All Elections</TabsTrigger>
+          <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
+          <TabsTrigger value="active">Active</TabsTrigger>
+          <TabsTrigger value="closed">Closed</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="all" className="mt-6">
+          {loading ? (
+            <p>Loading elections...</p>
+          ) : error ? (
+            <Card>
+              <CardContent className="pt-6">
+                <p className="text-red-500">{error}</p>
+              </CardContent>
+            </Card>
+          ) : elections.length === 0 ? (
+            <Card>
+              <CardContent className="pt-6">
+                <p>No elections found.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filterElections(activeTab).map(election => (
+                <ElectionCard key={election.id} election={election} />
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="upcoming" className="mt-6">
+          <ElectionList elections={filterElections('upcoming')} loading={loading} error={error} />
+        </TabsContent>
+
+        <TabsContent value="active" className="mt-6">
+          <ElectionList elections={filterElections('active')} loading={loading} error={error} />
+        </TabsContent>
+
+        <TabsContent value="closed" className="mt-6">
+          <ElectionList elections={filterElections('closed')} loading={loading} error={error} />
+        </TabsContent>
+      </Tabs>
+
+      <Separator className="my-8" />
+
+      <Card className={`${highContrast ? 'border-2 border-black' : ''}`}>
+        <CardHeader>
+          <CardTitle className={`${largeText ? 'text-2xl' : 'text-xl'}`}>About Student Elections</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className={`${largeText ? 'text-lg' : ''}`}>
+            The student election system allows you to vote for candidates running for various positions in student
+            government. Active elections are available for voting, while upcoming elections show the candidates who
+            will be running. Closed elections display the results of past elections.
+          </p>
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 

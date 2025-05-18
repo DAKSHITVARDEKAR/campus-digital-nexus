@@ -1,144 +1,107 @@
 
 import React from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { format } from 'date-fns';
 import { Candidate } from '@/models/election';
 
-type CandidateApplicationDetailProps = {
-  application: Candidate;
-  isOpen: boolean;
+export interface CandidateApplicationDetailProps {
+  candidate: Candidate;
   onClose: () => void;
-  onEdit?: (id: string) => void;
-  onDelete?: (id: string) => void;
-  onApprove?: (id: string) => void;
-  onReject?: (id: string) => void;
-  isAdmin?: boolean;
-};
+  onApprove?: () => Promise<void>;
+  onReject?: () => Promise<void>;
+  showApproveButtons?: boolean;
+}
 
 const CandidateApplicationDetail: React.FC<CandidateApplicationDetailProps> = ({
-  application,
-  isOpen,
+  candidate,
   onClose,
-  onEdit,
-  onDelete,
   onApprove,
   onReject,
-  isAdmin = false
+  showApproveButtons = false
 }) => {
-  if (!application) return null;
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-100';
-      case 'approved':
-        return 'bg-green-100 text-green-800 border-green-100';
-      case 'rejected':
-        return 'bg-red-100 text-red-800 border-red-100';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-100';
-    }
-  };
-
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="flex items-center justify-between">
-            <span>Candidate Application</span>
-            <Badge className={getStatusColor(application.status)}>
-              {application.status.charAt(0).toUpperCase() + application.status.slice(1)}
-            </Badge>
-          </DialogTitle>
-          <DialogDescription>
-            Submitted on {format(new Date(application.submittedAt), 'MMMM d, yyyy')}
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-4 py-2">
+    <Card className="w-full">
+      <CardHeader>
+        <div className="flex justify-between items-start">
           <div>
-            <h3 className="font-semibold text-lg">{application.studentName}</h3>
-            <p className="text-sm text-muted-foreground">ID: {application.studentId}</p>
+            <CardTitle className="text-xl">Candidate Application</CardTitle>
+            <p className="text-sm text-muted-foreground mt-1">ID: {candidate.id}</p>
           </div>
-
-          <div className="grid grid-cols-2 gap-4 text-sm">
+          <Badge
+            variant={
+              candidate.status === 'approved'
+                ? 'success'
+                : candidate.status === 'rejected'
+                ? 'destructive'
+                : 'outline'
+            }
+          >
+            {candidate.status?.charAt(0).toUpperCase() + candidate.status?.slice(1)}
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div>
+          <h3 className="font-semibold">Candidate Information</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
             <div>
-              <p className="font-medium">Position</p>
-              <p>{application.position}</p>
+              <p className="text-sm text-muted-foreground">Name</p>
+              <p>{candidate.studentName}</p>
             </div>
             <div>
-              <p className="font-medium">Department</p>
-              <p>{application.department}</p>
+              <p className="text-sm text-muted-foreground">Student ID</p>
+              <p>{candidate.studentId}</p>
             </div>
-          </div>
-
-          <div>
-            <p className="font-medium">Year of Study</p>
-            <p className="text-sm">{application.year}</p>
-          </div>
-
-          <div>
-            <p className="font-medium">Manifesto / Statement</p>
-            <p className="text-sm whitespace-pre-line">{application.manifesto}</p>
+            <div>
+              <p className="text-sm text-muted-foreground">Department</p>
+              <p>{candidate.department}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Year</p>
+              <p>{candidate.year}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Position</p>
+              <p>{candidate.position}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Submitted</p>
+              <p>{new Date(candidate.submittedAt).toLocaleDateString()}</p>
+            </div>
           </div>
         </div>
 
-        <DialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-between sm:space-x-2">
-          <Button variant="outline" onClick={onClose}>Close</Button>
-          
-          <div className="flex gap-2 mb-2 sm:mb-0">
-            {isAdmin && application.status === 'pending' && (
-              <>
-                <Button 
-                  variant="outline"
-                  className="text-green-600 border-green-200 hover:bg-green-50 hover:text-green-700"
-                  onClick={() => onApprove && onApprove(application.id)}
-                >
-                  Approve
-                </Button>
-                <Button 
-                  variant="outline"
-                  className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
-                  onClick={() => onReject && onReject(application.id)}
-                >
-                  Reject
-                </Button>
-              </>
-            )}
-            {onEdit && application.status === 'pending' && (
-              <Button 
-                onClick={() => {
-                  onClose();
-                  onEdit(application.id);
-                }}
-              >
-                Edit
-              </Button>
-            )}
-            {onDelete && application.status === 'pending' && (
-              <Button 
-                variant="destructive"
-                onClick={() => {
-                  onClose();
-                  onDelete(application.id);
-                }}
-              >
-                Delete
-              </Button>
-            )}
+        <div>
+          <h3 className="font-semibold">Manifesto</h3>
+          <p className="mt-2 text-gray-700">{candidate.manifesto}</p>
+        </div>
+
+        {candidate.imageUrl && (
+          <div>
+            <h3 className="font-semibold">Profile Image</h3>
+            <div className="mt-2">
+              <img src={candidate.imageUrl} alt="Candidate profile" className="max-w-xs rounded-md" />
+            </div>
           </div>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        )}
+      </CardContent>
+      <CardFooter className="flex justify-end space-x-2">
+        {showApproveButtons && candidate.status === 'pending' && (
+          <>
+            <Button variant="destructive" onClick={onReject}>
+              Reject
+            </Button>
+            <Button variant="default" onClick={onApprove}>
+              Approve
+            </Button>
+          </>
+        )}
+        <Button variant="outline" onClick={onClose}>
+          Close
+        </Button>
+      </CardFooter>
+    </Card>
   );
 };
 

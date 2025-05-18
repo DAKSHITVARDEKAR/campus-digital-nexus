@@ -1,175 +1,101 @@
 
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { cn } from '@/lib/utils';
+import { Link } from 'react-router-dom';
 import { 
-  Home, 
-  Calendar, 
-  FileText, 
-  User, 
-  Award, 
-  Settings, 
-  Vote, 
-  AlertTriangle, 
-  DollarSign, 
-  BookOpen,
-  Bell,
+  HomeIcon, UserIcon, VoteIcon, CalendarIcon, 
+  FileTextIcon, AlertTriangleIcon, MessageSquareIcon, 
+  DollarSignIcon, AwardIcon, BellIcon, SettingsIcon,
   CheckSquare
 } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
-import { Button } from '@/components/ui/button';
 
-interface SidebarProps {
-  isOpen?: boolean;
-  onClose?: () => void;
+export interface SidebarProps {
+  isOpen: boolean;
+  setIsOpen?: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-interface NavItem {
-  path: string;
-  label: string;
-  icon: React.ReactNode;
-  roles?: string[];
-}
-
-const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
-  const { user, logout } = useAuth();
-  const location = useLocation();
-  
-  const navItems: NavItem[] = [
-    {
-      path: user?.role === 'Admin' ? '/admin' : user?.role === 'Faculty' ? '/faculty' : '/student',
-      label: 'Dashboard',
-      icon: <Home className="h-5 w-5" />,
-    },
-    {
-      path: '/elections',
-      label: 'Elections',
-      icon: <Vote className="h-5 w-5" />,
-    },
-    {
-      path: '/facilities',
-      label: 'Facilities',
-      icon: <Calendar className="h-5 w-5" />,
-    },
-    {
-      path: '/my-bookings',
-      label: 'My Bookings',
-      icon: <BookOpen className="h-5 w-5" />,
-    },
-    {
-      path: '/applications',
-      label: 'Applications',
-      icon: <FileText className="h-5 w-5" />,
-    },
-    {
-      path: '/cheating-records',
-      label: 'Integrity Records',
-      icon: <AlertTriangle className="h-5 w-5" />,
-    },
-    {
-      path: '/complaints',
-      label: 'Complaints',
-      icon: <AlertTriangle className="h-5 w-5" />,
-    },
-    {
-      path: '/budget',
-      label: 'Budget',
-      icon: <DollarSign className="h-5 w-5" />,
-    },
-    {
-      path: '/achievements',
-      label: 'Achievements',
-      icon: <Award className="h-5 w-5" />,
-    },
-    {
-      path: '/tasks',
-      label: 'Tasks',
-      icon: <CheckSquare className="h-5 w-5" />,
-    },
-    {
-      path: '/notifications',
-      label: 'Notifications',
-      icon: <Bell className="h-5 w-5" />,
-    },
-    {
-      path: '/profile',
-      label: 'Profile',
-      icon: <User className="h-5 w-5" />,
-    },
-    {
-      path: '/settings',
-      label: 'Settings',
-      icon: <Settings className="h-5 w-5" />,
-    },
-  ];
-
-  if (!user) {
-    return null;
-  }
-
+const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
   return (
-    <aside
-      className={cn(
-        "fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 transition-all duration-300 transform shadow-lg lg:shadow-none lg:translate-x-0",
-        isOpen ? "translate-x-0" : "-translate-x-full"
-      )}
-    >
-      <div className="flex flex-col h-full">
-        <div className="px-4 py-6 flex items-center justify-center border-b">
-          <Link to="/" className="flex items-center space-x-2">
-            <span className="text-xl font-bold text-primary">Campus-Nexus</span>
-          </Link>
-        </div>
-
-        <nav className="flex-1 px-4 py-6 overflow-y-auto">
-          <ul className="space-y-2">
-            {navItems.map((item) => {
-              // Skip items that require specific roles if user doesn't have them
-              if (item.roles && !item.roles.includes(user.role)) {
-                return null;
-              }
-
-              const isActive = location.pathname === item.path;
-
-              return (
-                <li key={item.path}>
-                  <Link
-                    to={item.path}
-                    className={cn(
-                      "flex items-center px-4 py-2.5 text-sm font-medium rounded-md",
-                      isActive
-                        ? "bg-primary text-white"
-                        : "text-gray-700 hover:bg-primary-foreground"
-                    )}
-                  >
-                    {item.icon}
-                    <span className="ml-3">{item.label}</span>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </nav>
-
-        <div className="p-4 border-t">
-          <div className="flex flex-col space-y-2">
-            <div className="text-sm font-medium text-gray-900">
-              {user.name}
-            </div>
-            <div className="text-xs text-gray-500 truncate">
-              {user.email}
-            </div>
-            <Button
-              variant="outline"
-              className="mt-2 w-full"
-              onClick={() => logout()}
-            >
-              Sign Out
-            </Button>
-          </div>
-        </div>
+    <div className={`fixed inset-y-0 left-0 z-40 w-64 bg-white shadow-lg transform ${isOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 transition-transform duration-300 ease-in-out`}>
+      <div className="flex items-center justify-center h-16 border-b">
+        <h2 className="text-xl font-semibold">Campus-Nexus</h2>
       </div>
-    </aside>
+      <nav className="mt-5">
+        <ul className="space-y-2 px-2">
+          <li>
+            <Link to="/" className="flex items-center px-4 py-2 text-gray-700 hover:bg-blue-100 hover:text-blue-600 rounded-md">
+              <HomeIcon className="h-5 w-5 mr-3" />
+              <span>Home</span>
+            </Link>
+          </li>
+          <li>
+            <Link to="/profile" className="flex items-center px-4 py-2 text-gray-700 hover:bg-blue-100 hover:text-blue-600 rounded-md">
+              <UserIcon className="h-5 w-5 mr-3" />
+              <span>Profile</span>
+            </Link>
+          </li>
+          <li>
+            <Link to="/elections" className="flex items-center px-4 py-2 text-gray-700 hover:bg-blue-100 hover:text-blue-600 rounded-md">
+              <VoteIcon className="h-5 w-5 mr-3" />
+              <span>Elections</span>
+            </Link>
+          </li>
+          <li>
+            <Link to="/facilities" className="flex items-center px-4 py-2 text-gray-700 hover:bg-blue-100 hover:text-blue-600 rounded-md">
+              <CalendarIcon className="h-5 w-5 mr-3" />
+              <span>Facility Booking</span>
+            </Link>
+          </li>
+          <li>
+            <Link to="/applications" className="flex items-center px-4 py-2 text-gray-700 hover:bg-blue-100 hover:text-blue-600 rounded-md">
+              <FileTextIcon className="h-5 w-5 mr-3" />
+              <span>Applications</span>
+            </Link>
+          </li>
+          <li>
+            <Link to="/integrity" className="flex items-center px-4 py-2 text-gray-700 hover:bg-blue-100 hover:text-blue-600 rounded-md">
+              <AlertTriangleIcon className="h-5 w-5 mr-3" />
+              <span>Academic Integrity</span>
+            </Link>
+          </li>
+          <li>
+            <Link to="/complaints" className="flex items-center px-4 py-2 text-gray-700 hover:bg-blue-100 hover:text-blue-600 rounded-md">
+              <MessageSquareIcon className="h-5 w-5 mr-3" />
+              <span>Complaints</span>
+            </Link>
+          </li>
+          <li>
+            <Link to="/budget" className="flex items-center px-4 py-2 text-gray-700 hover:bg-blue-100 hover:text-blue-600 rounded-md">
+              <DollarSignIcon className="h-5 w-5 mr-3" />
+              <span>Budget</span>
+            </Link>
+          </li>
+          <li>
+            <Link to="/achievements" className="flex items-center px-4 py-2 text-gray-700 hover:bg-blue-100 hover:text-blue-600 rounded-md">
+              <AwardIcon className="h-5 w-5 mr-3" />
+              <span>Achievements</span>
+            </Link>
+          </li>
+          <li>
+            <Link to="/tasks" className="flex items-center px-4 py-2 text-gray-700 hover:bg-blue-100 hover:text-blue-600 rounded-md">
+              <CheckSquare className="h-5 w-5 mr-3" />
+              <span>Tasks</span>
+            </Link>
+          </li>
+          <li>
+            <Link to="/notifications" className="flex items-center px-4 py-2 text-gray-700 hover:bg-blue-100 hover:text-blue-600 rounded-md">
+              <BellIcon className="h-5 w-5 mr-3" />
+              <span>Notifications</span>
+            </Link>
+          </li>
+          <li>
+            <Link to="/settings" className="flex items-center px-4 py-2 text-gray-700 hover:bg-blue-100 hover:text-blue-600 rounded-md">
+              <SettingsIcon className="h-5 w-5 mr-3" />
+              <span>Settings</span>
+            </Link>
+          </li>
+        </ul>
+      </nav>
+    </div>
   );
 };
 
