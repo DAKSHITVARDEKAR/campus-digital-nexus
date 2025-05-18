@@ -31,11 +31,12 @@ export const registerUser = async (
 
     // Add to students team by default
     try {
+      // Fixed: Pass 'students' as a string, not an array
       await teams.createMembership(
-        'students',
-        email,
-        [],
-        'member'
+        'students', // teamId
+        email, // email
+        [], // roles
+        'member' // status
       );
     } catch (teamError) {
       console.error('Error adding user to students team:', teamError);

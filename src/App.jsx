@@ -24,6 +24,7 @@ import Facilities from './pages/Facilities';
 import BookFacilityPage from './pages/BookFacilityPage';
 import MyBookingsPage from './pages/MyBookingsPage';
 import AchievementsPage from './pages/AchievementsPage';
+import TasksPage from './pages/TasksPage';
 import { AuthProvider } from './contexts/AuthContext';
 import { AccessibilityProvider } from './contexts/AccessibilityContext';
 
@@ -54,6 +55,7 @@ function App() {
             <Route path="/book-facility/:facilityId?" element={<BookFacilityPage />} />
             <Route path="/my-bookings" element={<MyBookingsPage />} />
             <Route path="/achievements" element={<AchievementsPage />} />
+            <Route path="/tasks" element={<TasksPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           <Toaster />

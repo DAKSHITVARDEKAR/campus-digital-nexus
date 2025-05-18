@@ -1,639 +1,366 @@
 
-import { 
-  Election, 
-  ElectionStatus, 
-  Candidate, 
-  Vote,
-  getElectionPermissions,
-  getCandidatePermissions
-} from '../models/election';
-import { getCurrentUser, User } from './mockAuth';
+import { Vote } from '../models/election';
 
-// Mock database for elections, candidates, and votes
-let elections: Election[] = [
+// Mock data for elections
+const mockElections = [
   {
-    id: 'election-2025',
-    title: 'Student Council Election 2025',
-    description: 'Vote for your student representatives for the academic year 2025-2026. The elected council will represent student interests in administrative decisions and organize campus events.',
-    startDate: '2025-04-10T00:00:00Z',
-    endDate: '2025-04-15T23:59:59Z',
-    status: 'active',
+    id: '1',
+    title: 'Student Council Elections 2023',
+    description: 'Annual student council election for the 2023-2024 academic year.',
+    startDate: '2023-10-01',
+    endDate: '2023-10-07',
+    status: 'upcoming',
     positions: ['President', 'Vice President', 'Secretary', 'Treasurer'],
     isPublic: true,
-    createdBy: 'admin789',
-    createdAt: '2025-03-01T00:00:00Z',
-    updatedAt: '2025-03-01T00:00:00Z'
+    createdBy: 'admin123',
+    createdAt: '2023-09-01',
+    updatedAt: '2023-09-01'
   },
   {
-    id: 'election-past',
-    title: 'Student Council Election 2024',
-    description: 'Student Council election for the academic year 2024-2025.',
-    startDate: '2024-04-10T00:00:00Z',
-    endDate: '2024-04-15T23:59:59Z',
+    id: '2',
+    title: 'Department Representative Elections',
+    description: 'Election for departmental representatives for the student council.',
+    startDate: '2023-09-15',
+    endDate: '2023-09-20',
     status: 'completed',
-    positions: ['President', 'Vice President'],
+    positions: ['Computer Science Rep', 'Engineering Rep', 'Business Rep', 'Arts Rep'],
     isPublic: true,
-    createdBy: 'admin789',
-    createdAt: '2024-03-01T00:00:00Z',
-    updatedAt: '2024-03-01T00:00:00Z'
+    createdBy: 'admin123',
+    createdAt: '2023-08-15',
+    updatedAt: '2023-08-15'
   },
   {
-    id: 'election-upcoming',
-    title: 'Department Representatives Election 2025',
-    description: 'Election for department representatives for the academic year 2025-2026.',
-    startDate: '2025-05-01T00:00:00Z',
-    endDate: '2025-05-07T23:59:59Z',
-    status: 'upcoming',
-    positions: ['Department Representative'],
-    isPublic: true,
-    createdBy: 'admin789',
-    createdAt: '2025-03-15T00:00:00Z',
-    updatedAt: '2025-03-15T00:00:00Z'
+    id: '3',
+    title: 'Club Leadership Elections',
+    description: 'Elections for various club leadership positions.',
+    startDate: '2023-11-01',
+    endDate: '2023-11-10',
+    status: 'active',
+    positions: ['Debate Club President', 'Sports Club Captain', 'Arts Club Lead', 'Tech Club Head'],
+    isPublic: false,
+    createdBy: 'admin456',
+    createdAt: '2023-10-15',
+    updatedAt: '2023-10-15'
   }
 ];
 
-let candidates: Candidate[] = [
+// Mock data for candidates
+const mockCandidates = [
   {
-    id: 'candidate-1',
-    electionId: 'election-2025',
-    studentName: 'Alex Johnson',
-    studentId: 'student123',
+    id: '101',
+    electionId: '1',
+    studentName: 'John Doe',
+    studentId: 'S12345',
     position: 'President',
+    manifesto: 'I promise to bring positive changes to our campus life and improve facilities.',
+    imageUrl: 'https://randomuser.me/api/portraits/men/1.jpg',
     department: 'Computer Science',
-    year: '3rd Year',
-    manifesto: 'Committed to improving campus technology infrastructure and creating more internship opportunities.',
-    imageUrl: 'https://randomuser.me/api/portraits/men/32.jpg',
-    voteCount: 145,
+    year: '3',
     status: 'approved',
-    submittedAt: '2025-03-05T10:30:00Z'
+    voteCount: 0,
+    submittedAt: '2023-09-15T10:30:00Z'
   },
   {
-    id: 'candidate-2',
-    electionId: 'election-2025',
-    studentName: 'Samantha Wilson',
-    studentId: 'ST65432',
+    id: '102',
+    electionId: '1',
+    studentName: 'Jane Smith',
+    studentId: 'S12346',
     position: 'President',
-    department: 'Business Administration',
-    year: '3rd Year',
-    manifesto: 'Focused on enhancing student welfare services and creating a more inclusive campus environment.',
-    imageUrl: 'https://randomuser.me/api/portraits/women/65.jpg',
-    voteCount: 132,
+    manifesto: 'I will work to make our college more inclusive and environmentally friendly.',
+    imageUrl: 'https://randomuser.me/api/portraits/women/1.jpg',
+    department: 'Environmental Science',
+    year: '2',
     status: 'approved',
-    submittedAt: '2025-03-06T14:15:00Z'
+    voteCount: 0,
+    submittedAt: '2023-09-16T09:15:00Z'
   },
   {
-    id: 'candidate-3',
-    electionId: 'election-2025',
-    studentName: 'Miguel Hernandez',
-    studentId: 'ST78901',
+    id: '103',
+    electionId: '1',
+    studentName: 'Michael Johnson',
+    studentId: 'S12347',
     position: 'Vice President',
-    department: 'Engineering',
-    year: '2nd Year',
-    manifesto: 'Will work to improve academic resources and establish stronger industry connections.',
-    imageUrl: 'https://randomuser.me/api/portraits/men/45.jpg',
-    voteCount: 98,
+    manifesto: 'My focus will be on improving academic resources and student support services.',
+    imageUrl: 'https://randomuser.me/api/portraits/men/2.jpg',
+    department: 'Business',
+    year: '3',
     status: 'approved',
-    submittedAt: '2025-03-07T09:45:00Z'
+    voteCount: 0,
+    submittedAt: '2023-09-14T14:45:00Z'
   },
   {
-    id: 'candidate-4',
-    electionId: 'election-2025',
-    studentName: 'Emily Zhang',
-    studentId: 'ST24680',
+    id: '104',
+    electionId: '1',
+    studentName: 'Emily Davis',
+    studentId: 'S12348',
     position: 'Vice President',
-    department: 'Life Sciences',
-    year: '3rd Year',
-    manifesto: 'Dedicated to sustainability initiatives and creating more research opportunities for undergraduates.',
-    imageUrl: 'https://randomuser.me/api/portraits/women/32.jpg',
-    voteCount: 110,
-    status: 'approved',
-    submittedAt: '2025-03-08T11:20:00Z'
-  },
-  {
-    id: 'past-candidate-1',
-    electionId: 'election-past',
-    studentName: 'Taylor Smith',
-    studentId: 'ST12345',
-    position: 'President',
+    manifesto: 'I will advocate for better mental health services and academic support.',
+    imageUrl: 'https://randomuser.me/api/portraits/women/2.jpg',
     department: 'Psychology',
-    year: '3rd Year',
-    manifesto: 'Focused on mental health resources and academic support services.',
-    imageUrl: 'https://randomuser.me/api/portraits/women/22.jpg',
-    voteCount: 178,
+    year: '4',
     status: 'approved',
-    submittedAt: '2024-03-05T10:30:00Z'
+    voteCount: 0,
+    submittedAt: '2023-09-13T11:30:00Z'
   },
   {
-    id: 'past-candidate-2',
-    electionId: 'election-past',
-    studentName: 'Omar Khan',
-    studentId: 'ST67890',
-    position: 'President',
-    department: 'Political Science',
-    year: '3rd Year',
-    manifesto: 'Advocating for more student involvement in university governance.',
-    imageUrl: 'https://randomuser.me/api/portraits/men/21.jpg',
-    voteCount: 132,
+    id: '105',
+    electionId: '1',
+    studentName: 'Robert Wilson',
+    studentId: 'S12349',
+    position: 'Secretary',
+    manifesto: 'I promise transparent communication and efficient organization.',
+    imageUrl: 'https://randomuser.me/api/portraits/men/3.jpg',
+    department: 'Communications',
+    year: '2',
     status: 'approved',
-    submittedAt: '2024-03-06T14:15:00Z'
+    voteCount: 0,
+    submittedAt: '2023-09-12T16:20:00Z'
+  },
+  {
+    id: '106',
+    electionId: '1',
+    studentName: 'Sarah Brown',
+    studentId: 'S12350',
+    position: 'Treasurer',
+    manifesto: 'I will ensure responsible budget allocation and financial transparency.',
+    imageUrl: 'https://randomuser.me/api/portraits/women/3.jpg',
+    department: 'Finance',
+    year: '3',
+    status: 'approved',
+    voteCount: 0,
+    submittedAt: '2023-09-11T10:00:00Z'
   }
 ];
 
-let votes: Vote[] = [];
-
-// Simulate network delay
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
-// Error class for API errors
-export class ApiError extends Error {
-  statusCode: number;
-  
-  constructor(message: string, statusCode: number = 400) {
-    super(message);
-    this.statusCode = statusCode;
-    this.name = 'ApiError';
+// Mock votes data
+const mockVotes = [
+  {
+    id: '1001',
+    electionId: '1',
+    candidateId: '101',
+    userId: 'user123',
+    timestamp: '2023-10-01T09:15:30Z'
+  },
+  {
+    id: '1002',
+    electionId: '1',
+    candidateId: '102',
+    userId: 'user124',
+    timestamp: '2023-10-01T10:20:45Z'
+  },
+  {
+    id: '1003',
+    electionId: '1',
+    candidateId: '101',
+    userId: 'user125',
+    timestamp: '2023-10-01T11:05:15Z'
   }
-}
+];
 
-// Check permissions middleware (simulated)
-const checkPermission = async <T>(
-  resourceType: 'election' | 'candidate' | 'vote',
-  action: 'create' | 'read' | 'update' | 'delete' | 'vote' | 'approve' | 'reject',
-  resourceId?: string
-): Promise<User> => {
-  const user = await getCurrentUser();
-  
-  if (!user) {
-    throw new ApiError('Authentication required', 401);
-  }
-
-  let hasPermission = false;
-
-  if (resourceType === 'election') {
-    const election = resourceId ? elections.find(e => e.id === resourceId) : undefined;
-    const permissions = getElectionPermissions(user.role, election, election?.createdBy === user.userId);
-    
-    switch (action) {
-      case 'create':
-        hasPermission = permissions.canCreate;
-        break;
-      case 'read':
-        hasPermission = permissions.canRead;
-        break;
-      case 'update':
-        hasPermission = permissions.canUpdate;
-        break;
-      case 'delete':
-        hasPermission = permissions.canDelete;
-        break;
-      case 'vote':
-        hasPermission = permissions.canVote;
-        break;
-      case 'approve':
-      case 'reject':
-        hasPermission = permissions.canApproveRejectCandidates;
-        break;
-    }
-  } else if (resourceType === 'candidate') {
-    const candidate = resourceId ? candidates.find(c => c.id === resourceId) : undefined;
-    const permissions = getCandidatePermissions(user.role, candidate, user.userId);
-    
-    switch (action) {
-      case 'create':
-        hasPermission = permissions.canCreate;
-        break;
-      case 'update':
-        hasPermission = permissions.canUpdate;
-        break;
-      case 'delete':
-        hasPermission = permissions.canDelete;
-        break;
-      case 'approve':
-        hasPermission = permissions.canApprove;
-        break;
-      case 'reject':
-        hasPermission = permissions.canReject;
-        break;
-      default:
-        hasPermission = true; // Reading candidates is always allowed
-    }
-  } else if (resourceType === 'vote') {
-    // Everyone can read votes for completed elections
-    // Only students and faculty can create votes for active elections
-    if (action === 'read') {
-      hasPermission = true;
-    } else if (action === 'create') {
-      hasPermission = user.role === 'Student' || user.role === 'Faculty';
-      
-      if (resourceId) {
-        const election = elections.find(e => e.id === resourceId);
-        hasPermission = hasPermission && election?.status === 'active';
-      }
-    }
-  }
-
-  if (!hasPermission) {
-    throw new ApiError(`Permission denied: Cannot ${action} ${resourceType}`, 403);
-  }
-
-  return user;
-};
-
-// Mock API endpoints
-
-// Election endpoints
-export const electionApi = {
+// Mock API functions
+export const mockElectionApi = {
   // Get all elections
-  getElections: async (): Promise<Election[]> => {
-    await delay(500);
-    const user = await getCurrentUser();
-    
-    // Filter elections based on user role
-    if (!user) {
-      return elections.filter(e => e.isPublic && e.status !== 'cancelled');
-    }
-    
-    if (user.role === 'Admin') {
-      return [...elections];
-    }
-    
-    // Students and Faculty can only see public elections that aren't cancelled
-    return elections.filter(e => e.isPublic && e.status !== 'cancelled');
+  getElections: () => {
+    return Promise.resolve({
+      total: mockElections.length,
+      elections: mockElections
+    });
   },
-  
-  // Get election by ID
-  getElection: async (id: string): Promise<Election> => {
-    await delay(300);
-    await checkPermission('election', 'read', id);
-    
-    const election = elections.find(e => e.id === id);
+
+  // Get a specific election by ID
+  getElection: (id: string) => {
+    const election = mockElections.find(e => e.id === id);
     if (!election) {
-      throw new ApiError(`Election with ID ${id} not found`, 404);
+      return Promise.reject(new Error('Election not found'));
     }
-    
-    return election;
+    return Promise.resolve(election);
   },
-  
+
   // Create a new election
-  createElection: async (electionData: Omit<Election, 'id' | 'createdBy' | 'createdAt' | 'updatedAt'>): Promise<Election> => {
-    await delay(700);
-    const user = await checkPermission('election', 'create');
-    
-    const newElection: Election = {
+  createElection: (electionData: any) => {
+    const newElection = {
+      id: `${mockElections.length + 1}`,
       ...electionData,
-      id: `election-${Date.now()}`,
-      createdBy: user.userId,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
-    
-    elections.push(newElection);
-    return newElection;
+    mockElections.push(newElection);
+    return Promise.resolve(newElection);
   },
-  
-  // Update an existing election
-  updateElection: async (id: string, electionData: Partial<Omit<Election, 'id' | 'createdBy' | 'createdAt'>>): Promise<Election> => {
-    await delay(500);
-    await checkPermission('election', 'update', id);
-    
-    const index = elections.findIndex(e => e.id === id);
+
+  // Update an election
+  updateElection: (id: string, electionData: any) => {
+    const index = mockElections.findIndex(e => e.id === id);
     if (index === -1) {
-      throw new ApiError(`Election with ID ${id} not found`, 404);
+      return Promise.reject(new Error('Election not found'));
     }
-    
-    const updatedElection: Election = {
-      ...elections[index],
+    mockElections[index] = {
+      ...mockElections[index],
       ...electionData,
       updatedAt: new Date().toISOString()
     };
-    
-    elections[index] = updatedElection;
-    return updatedElection;
+    return Promise.resolve(mockElections[index]);
   },
-  
-  // Delete an election
-  deleteElection: async (id: string): Promise<void> => {
-    await delay(500);
-    await checkPermission('election', 'delete', id);
-    
-    const index = elections.findIndex(e => e.id === id);
-    if (index === -1) {
-      throw new ApiError(`Election with ID ${id} not found`, 404);
-    }
-    
-    // Check if there are votes for this election
-    const hasVotes = votes.some(v => v.electionId === id);
-    if (hasVotes) {
-      throw new ApiError('Cannot delete election with existing votes', 400);
-    }
-    
-    elections.splice(index, 1);
-  },
-  
-  // Get election results
-  getElectionResults: async (id: string): Promise<{ candidates: Candidate[], totalVotes: number }> => {
-    await delay(700);
-    const user = await getCurrentUser();
-    const election = await electionApi.getElection(id);
-    
-    // Only admins can see results for non-completed elections
-    if (election.status !== 'completed' && (!user || user.role !== 'Admin')) {
-      throw new ApiError('Results are only available for completed elections', 403);
-    }
-    
-    const electionCandidates = candidates.filter(c => c.electionId === id && c.status === 'approved');
-    const totalVotes = electionCandidates.reduce((sum, candidate) => sum + candidate.voteCount, 0);
-    
-    return {
-      candidates: electionCandidates,
-      totalVotes
-    };
-  }
-};
 
-// Candidate endpoints
-export const candidateApi = {
-  // Get all candidates for an election
-  getCandidates: async (electionId: string): Promise<Candidate[]> => {
-    await delay(500);
-    const user = await getCurrentUser();
-    
-    let electionCandidates = candidates.filter(c => c.electionId === electionId);
-    
-    // Filter based on user role
-    if (!user) {
-      // Public users can only see approved candidates
-      return electionCandidates.filter(c => c.status === 'approved');
+  // Delete an election
+  deleteElection: (id: string) => {
+    const index = mockElections.findIndex(e => e.id === id);
+    if (index === -1) {
+      return Promise.reject(new Error('Election not found'));
     }
-    
-    if (user.role !== 'Admin' && user.role !== 'Faculty') {
-      // Students can only see approved candidates or their own applications
-      return electionCandidates.filter(c => 
-        c.status === 'approved' || c.studentId === user.userId
-      );
-    }
-    
-    // Admins and Faculty can see all candidates
-    return electionCandidates;
+    const deletedElection = mockElections.splice(index, 1)[0];
+    return Promise.resolve(deletedElection);
   },
-  
-  // Get a specific candidate
-  getCandidate: async (id: string): Promise<Candidate> => {
-    await delay(300);
-    const user = await getCurrentUser();
-    
-    const candidate = candidates.find(c => c.id === id);
-    if (!candidate) {
-      throw new ApiError(`Candidate with ID ${id} not found`, 404);
-    }
-    
-    // Check permissions based on status and role
-    if (candidate.status !== 'approved') {
-      if (!user) {
-        throw new ApiError('Candidate not found', 404); // Don't reveal that it exists
-      }
-      
-      if (user.role !== 'Admin' && user.role !== 'Faculty' && candidate.studentId !== user.userId) {
-        throw new ApiError('Permission denied: Cannot view this candidate', 403);
-      }
-    }
-    
-    return candidate;
+
+  // Get candidates for a specific election
+  getCandidates: (electionId: string) => {
+    const candidates = mockCandidates.filter(c => c.electionId === electionId);
+    return Promise.resolve({
+      total: candidates.length,
+      candidates
+    });
   },
-  
-  // Submit a candidate application
-  createCandidate: async (candidateData: Omit<Candidate, 'id' | 'voteCount' | 'status' | 'submittedAt'>): Promise<Candidate> => {
-    await delay(700);
-    const user = await checkPermission('candidate', 'create');
-    
-    // Get the election to verify it exists and is accepting candidates
-    const election = await electionApi.getElection(candidateData.electionId);
-    if (election.status !== 'upcoming' && election.status !== 'active') {
-      throw new ApiError('This election is not accepting candidate applications', 400);
-    }
-    
-    // Check if the position is valid for this election
-    if (!election.positions.includes(candidateData.position)) {
-      throw new ApiError(`Invalid position. Valid positions are: ${election.positions.join(', ')}`, 400);
-    }
-    
-    // Check if the user has already applied for this position in this election
-    const existingApplication = candidates.find(c => 
-      c.electionId === candidateData.electionId && 
-      c.studentId === user.userId &&
-      c.position === candidateData.position
-    );
-    
-    if (existingApplication) {
-      throw new ApiError('You have already applied for this position in this election', 400);
-    }
-    
-    const newCandidate: Candidate = {
+
+  // Create a new candidate
+  createCandidate: (candidateData: any) => {
+    const newCandidate = {
+      id: `${mockCandidates.length + 1}`,
       ...candidateData,
-      id: `candidate-${Date.now()}`,
-      studentId: user.userId,
-      voteCount: 0,
       status: 'pending',
+      voteCount: 0,
       submittedAt: new Date().toISOString()
     };
-    
-    candidates.push(newCandidate);
-    return newCandidate;
+    mockCandidates.push(newCandidate);
+    return Promise.resolve(newCandidate);
   },
-  
-  // Update a candidate application
-  updateCandidate: async (id: string, candidateData: Partial<Omit<Candidate, 'id' | 'electionId' | 'studentId' | 'voteCount' | 'status' | 'submittedAt'>>): Promise<Candidate> => {
-    await delay(500);
-    const user = await getCurrentUser();
-    
-    const index = candidates.findIndex(c => c.id === id);
-    if (index === -1) {
-      throw new ApiError(`Candidate with ID ${id} not found`, 404);
-    }
-    
-    const candidate = candidates[index];
-    
-    // Check permissions
-    if (user?.role !== 'Admin' && candidate.studentId !== user?.userId) {
-      throw new ApiError('Permission denied: Cannot update this application', 403);
-    }
-    
-    // Students can only update pending applications
-    if (user?.role !== 'Admin' && candidate.status !== 'pending') {
-      throw new ApiError('Cannot update application as it has already been processed', 400);
-    }
-    
-    const updatedCandidate: Candidate = {
-      ...candidate,
-      ...candidateData
-    };
-    
-    candidates[index] = updatedCandidate;
-    return updatedCandidate;
-  },
-  
-  // Delete a candidate application
-  deleteCandidate: async (id: string): Promise<void> => {
-    await delay(500);
-    const user = await getCurrentUser();
-    
-    const index = candidates.findIndex(c => c.id === id);
-    if (index === -1) {
-      throw new ApiError(`Candidate with ID ${id} not found`, 404);
-    }
-    
-    const candidate = candidates[index];
-    
-    // Check permissions
-    if (user?.role !== 'Admin' && candidate.studentId !== user?.userId) {
-      throw new ApiError('Permission denied: Cannot delete this application', 403);
-    }
-    
-    // Students can only delete pending applications
-    if (user?.role !== 'Admin' && candidate.status !== 'pending') {
-      throw new ApiError('Cannot delete application as it has already been processed', 400);
-    }
-    
-    // Check if there are votes for this candidate
-    const hasVotes = votes.some(v => v.candidateId === id);
-    if (hasVotes && user?.role !== 'Admin') {
-      throw new ApiError('Cannot delete candidate with existing votes', 400);
-    }
-    
-    candidates.splice(index, 1);
-  },
-  
-  // Approve a candidate application
-  approveCandidate: async (id: string): Promise<Candidate> => {
-    await delay(500);
-    await checkPermission('candidate', 'approve', id);
-    
-    const index = candidates.findIndex(c => c.id === id);
-    if (index === -1) {
-      throw new ApiError(`Candidate with ID ${id} not found`, 404);
-    }
-    
-    const candidate = candidates[index];
-    
-    if (candidate.status !== 'pending') {
-      throw new ApiError(`This application has already been ${candidate.status}`, 400);
-    }
-    
-    const updatedCandidate: Candidate = {
-      ...candidate,
-      status: 'approved'
-    };
-    
-    candidates[index] = updatedCandidate;
-    return updatedCandidate;
-  },
-  
-  // Reject a candidate application
-  rejectCandidate: async (id: string): Promise<Candidate> => {
-    await delay(500);
-    await checkPermission('candidate', 'reject', id);
-    
-    const index = candidates.findIndex(c => c.id === id);
-    if (index === -1) {
-      throw new ApiError(`Candidate with ID ${id} not found`, 404);
-    }
-    
-    const candidate = candidates[index];
-    
-    if (candidate.status !== 'pending') {
-      throw new ApiError(`This application has already been ${candidate.status}`, 400);
-    }
-    
-    const updatedCandidate: Candidate = {
-      ...candidate,
-      status: 'rejected'
-    };
-    
-    candidates[index] = updatedCandidate;
-    return updatedCandidate;
-  }
-};
 
-// Voting endpoints
-export const voteApi = {
+  // Approve a candidate
+  approveCandidate: (id: string) => {
+    const index = mockCandidates.findIndex(c => c.id === id);
+    if (index === -1) {
+      return Promise.reject(new Error('Candidate not found'));
+    }
+    mockCandidates[index].status = 'approved';
+    return Promise.resolve(mockCandidates[index]);
+  },
+
+  // Reject a candidate
+  rejectCandidate: (id: string) => {
+    const index = mockCandidates.findIndex(c => c.id === id);
+    if (index === -1) {
+      return Promise.reject(new Error('Candidate not found'));
+    }
+    mockCandidates[index].status = 'rejected';
+    return Promise.resolve(mockCandidates[index]);
+  },
+
   // Cast a vote
-  castVote: async (electionId: string, candidateId: string): Promise<void> => {
-    await delay(700);
-    const user = await checkPermission('election', 'vote', electionId);
+  castVote: (voteData: { electionId: string, candidateId: string, userId: string }) => {
+    // Check if election exists
+    const election = mockElections.find(e => e.id === voteData.electionId);
+    if (!election) {
+      return Promise.reject(new Error('Election not found'));
+    }
     
-    // Check if election exists and is active
-    const election = await electionApi.getElection(electionId);
+    // Check if election is active
     if (election.status !== 'active') {
-      throw new ApiError('Voting is only allowed for active elections', 400);
+      return Promise.reject(new Error('Election is not currently active'));
     }
     
     // Check if candidate exists and is approved
-    const candidate = await candidateApi.getCandidate(candidateId);
-    if (candidate.electionId !== electionId) {
-      throw new ApiError('Candidate does not belong to this election', 400);
+    const candidate = mockCandidates.find(c => 
+      c.id === voteData.candidateId && 
+      c.electionId === voteData.electionId &&
+      c.status === 'approved'
+    );
+    if (!candidate) {
+      return Promise.reject(new Error('Candidate not found or not approved'));
     }
     
-    if (candidate.status !== 'approved') {
-      throw new ApiError('Cannot vote for a candidate that has not been approved', 400);
+    // Check if user already voted in this election
+    const existingVote = mockVotes.find(v => 
+      v.electionId === voteData.electionId && 
+      v.userId === voteData.userId
+    );
+    if (existingVote) {
+      return Promise.reject(new Error('User already voted in this election'));
     }
     
-    // Check if user has already voted in this election
-    const existingVote = votes.find(v => 
-      v.electionId === electionId && 
-      v.voterId === user.userId
+    // Create new vote
+    const newVote: Vote = {
+      id: `${mockVotes.length + 1}`,
+      electionId: voteData.electionId,
+      candidateId: voteData.candidateId,
+      userId: voteData.userId,
+      timestamp: new Date().toISOString()
+    };
+    mockVotes.push(newVote);
+    
+    // Increment candidate vote count
+    const candidateIndex = mockCandidates.findIndex(c => c.id === voteData.candidateId);
+    mockCandidates[candidateIndex].voteCount += 1;
+    
+    return Promise.resolve(newVote);
+  },
+
+  // Get election results
+  getElectionResults: (electionId: string) => {
+    // Check if election exists
+    const election = mockElections.find(e => e.id === electionId);
+    if (!election) {
+      return Promise.reject(new Error('Election not found'));
+    }
+    
+    // Get all candidates for this election
+    const candidates = mockCandidates.filter(c => 
+      c.electionId === electionId && 
+      c.status === 'approved'
     );
     
-    if (existingVote) {
-      throw new ApiError('You have already voted in this election', 400);
-    }
+    // Get votes per candidate
+    const candidateResults = candidates.map(candidate => {
+      const votes = mockVotes.filter(v => v.candidateId === candidate.id);
+      return {
+        id: candidate.id,
+        name: candidate.studentName,
+        position: candidate.position,
+        voteCount: votes.length,
+        imageUrl: candidate.imageUrl
+      };
+    });
     
-    // Record the vote
-    const newVote: Vote = {
-      id: `vote-${Date.now()}`,
+    // Group results by position
+    const resultsByPosition = {};
+    candidateResults.forEach(result => {
+      if (!resultsByPosition[result.position]) {
+        resultsByPosition[result.position] = [];
+      }
+      resultsByPosition[result.position].push(result);
+    });
+    
+    // Sort candidates by vote count within each position
+    Object.keys(resultsByPosition).forEach(position => {
+      resultsByPosition[position].sort((a, b) => b.voteCount - a.voteCount);
+    });
+    
+    return Promise.resolve({
       electionId,
-      candidateId,
-      voterId: user.userId,
-      votedAt: new Date().toISOString()
-    };
-    
-    votes.push(newVote);
-    
-    // Update the candidate's vote count
-    const candidateIndex = candidates.findIndex(c => c.id === candidateId);
-    candidates[candidateIndex].voteCount += 1;
+      title: election.title,
+      status: election.status,
+      positions: Object.keys(resultsByPosition),
+      resultsByPosition,
+      totalVotes: mockVotes.filter(v => v.electionId === electionId).length
+    });
   },
-  
-  // Check if user has voted in an election
-  hasVoted: async (electionId: string): Promise<boolean> => {
-    await delay(300);
-    const user = await getCurrentUser();
-    
-    if (!user) {
-      return false;
-    }
-    
-    return votes.some(v => v.electionId === electionId && v.voterId === user.userId);
-  },
-  
-  // Get user's vote in an election
-  getUserVote: async (electionId: string): Promise<string | null> => {
-    await delay(300);
-    const user = await getCurrentUser();
-    
-    if (!user) {
-      return null;
-    }
-    
-    const vote = votes.find(v => v.electionId === electionId && v.voterId === user.userId);
-    return vote ? vote.candidateId : null;
-  }
-};
 
-// Combined API object for easier imports
-export const mockElectionApi = {
-  elections: electionApi,
-  candidates: candidateApi,
-  votes: voteApi
+  // Check if user has voted in a specific election
+  hasVoted: (electionId: string, userId: string) => {
+    const vote = mockVotes.find(v => 
+      v.electionId === electionId && 
+      v.userId === userId
+    );
+    return Promise.resolve(!!vote);
+  }
 };
 
 export default mockElectionApi;

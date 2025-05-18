@@ -14,9 +14,9 @@ import {
   Shield,
   BookOpen,
   Layers,
-  Activity
+  Activity,
+  CheckSquare
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 
@@ -30,6 +30,7 @@ type NavItem = {
 
 const commonNavItems: NavItem[] = [
   { name: 'Dashboard', to: '/', icon: <Home className="h-5 w-5" /> },
+  { name: 'Tasks', to: '/tasks', icon: <CheckSquare className="h-5 w-5" /> },
   { name: 'Elections', to: '/elections', icon: <Users className="h-5 w-5" /> },
   { name: 'Budget', to: '/budget', icon: <BarChart className="h-5 w-5" /> },
   { name: 'Facilities', to: '/facilities', icon: <Calendar className="h-5 w-5" /> },

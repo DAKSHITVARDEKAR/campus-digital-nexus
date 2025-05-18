@@ -64,7 +64,8 @@ export const mapCandidateFromDocument = (doc: any): Candidate => {
     department: doc.department || '',
     year: doc.year || '',
     status: doc.status || 'pending',
-    voteCount: doc.voteCount || 0
+    voteCount: doc.voteCount || 0,
+    submittedAt: doc.submittedAt || new Date().toISOString() // Added missing property
   };
 };
 
