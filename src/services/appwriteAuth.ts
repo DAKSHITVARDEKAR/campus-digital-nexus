@@ -1,7 +1,6 @@
 
 import { account, teams } from './appwriteService';
 import { ID } from 'appwrite';
-import { useToast } from '@/hooks/use-toast';
 
 export type UserRole = 'student' | 'faculty' | 'admin';
 
@@ -148,4 +147,16 @@ export const hasRole = async (role: string): Promise<boolean> => {
     console.error('Failed to check role:', error);
     return false;
   }
+};
+
+// Mock auth for development (to be removed in production)
+export const mockAuth = {
+  getUserRoles: () => ['student'],
+  hasRole: (role: string) => role === 'student',
+  getCurrentUser: () => ({
+    $id: 'mock-user',
+    email: 'student@example.com',
+    name: 'Mock Student',
+    roles: ['student']
+  })
 };
