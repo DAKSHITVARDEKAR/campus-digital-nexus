@@ -1,150 +1,95 @@
+import { Account, ID, Session, Client, Databases, Query } from 'appwrite';
+import { appwriteConfig } from './config';
 
-import { account, teams } from './appwriteService';
-import { ID } from 'appwrite';
+const client = new Client();
 
-export type UserRole = 'student' | 'faculty' | 'admin';
+client
+    .setEndpoint(appwriteConfig.endpoint)
+    .setProject(appwriteConfig.projectId);
+
+export const account = new Account(client);
+export const databases = new Databases(client);
 
 export interface User {
   $id: string;
-  email: string;
   name: string;
+  email: string;
   roles: string[];
 }
 
-// Register a new user
-export const registerUser = async (
-  email: string, 
-  password: string, 
-  name: string
-): Promise<User> => {
+export type UserRole = 'student' | 'faculty' | 'admin';
+
+// Sign up a new user
+export const registerUser = async (email: string, password: string, name: string): Promise<User> => {
   try {
-    // Create user account
-    const newUser = await account.create(
+    const userAccount = await account.create(
       ID.unique(),
       email,
       password,
       name
     );
 
-    // Log in the user
-    await account.createSession(email, password);
-
-    // Add to students team by default
-    try {
-      await teams.createMembership(
-        'students',
-        email,
-        [],
-        'member'
-      );
-    } catch (teamError) {
-      console.error('Error adding user to students team:', teamError);
+    if (!userAccount) {
+      throw new Error('Account could not be created');
     }
 
-    // Get user session
-    const userAccount = await account.get();
-    
-    // Get user's team memberships to determine roles
-    const userTeams = await teams.list();
-    const roles = userTeams.teams.map(team => 
-      team.$id.replace('team:', '')
-    );
-    
-    return {
-      $id: userAccount.$id,
-      email: userAccount.email,
-      name: userAccount.name,
-      roles: roles
-    };
-  } catch (error) {
-    console.error('Registration error:', error);
+    // Optionally, create a document in a database to store additional user data
+    // and link it to the user's account using the user's ID.
+    return mapAppwriteUser(userAccount);
+  } catch (error: any) {
+    console.error('Failed to register user', error);
     throw error;
   }
 };
 
-// Login user
-export const loginUser = async (
-  email: string, 
-  password: string
-): Promise<User> => {
+// Log in an existing user
+export const loginUser = async (email: string, password: string): Promise<User> => {
   try {
-    // Create session
-    await account.createSession(email, password);
+    const session = await account.createEmailSession(email, password);
+    if (!session) {
+      throw new Error('Session could not be created');
+    }
     
-    // Get user data
-    const userAccount = await account.get();
-    
-    // Get user's team memberships
-    const userTeams = await teams.list();
-    const roles = userTeams.teams.map(team => 
-      team.$id.replace('team:', '')
-    );
-    
-    return {
-      $id: userAccount.$id,
-      email: userAccount.email,
-      name: userAccount.name,
-      roles: roles
-    };
-  } catch (error) {
-    console.error('Login error:', error);
+    const user = await getCurrentUser();
+    return user as User;
+  } catch (error: any) {
+    console.error('Failed to login user', error);
     throw error;
   }
 };
 
-// Logout user
+// Log out the current user
 export const logoutUser = async (): Promise<void> => {
   try {
     await account.deleteSession('current');
-  } catch (error) {
-    console.error('Logout error:', error);
+  } catch (error: any) {
+    console.error('Failed to logout user', error);
     throw error;
   }
 };
 
-// Get current user
+// Get the current user
 export const getCurrentUser = async (): Promise<User | null> => {
   try {
     const userAccount = await account.get();
-    
-    // Get user's team memberships
-    const userTeams = await teams.list();
-    const roles = userTeams.teams.map(team => 
-      team.$id.replace('team:', '')
-    );
-    
-    return {
-      $id: userAccount.$id,
-      email: userAccount.email,
-      name: userAccount.name,
-      roles: roles
-    };
-  } catch (error) {
-    // Not logged in
+    return mapAppwriteUser(userAccount);
+  } catch (error: any) {
+    console.log('No current session found', error);
     return null;
   }
 };
 
-// Get user's role memberships
-export const getUserRoles = async (): Promise<string[]> => {
-  try {
-    const userTeams = await teams.list();
-    return userTeams.teams.map(team => 
-      team.$id.replace('team:', '')
-    );
-  } catch (error) {
-    console.error('Failed to get user roles:', error);
-    return [];
-  }
+// Map Appwrite user to our User interface
+const mapAppwriteUser = (user: any): User => {
+  return {
+    $id: user.$id,
+    name: user.name,
+    email: user.email,
+    roles: user.prefs?.roles || [] // Access roles from preferences
+  };
 };
 
-// Check if user has a specific role
-export const hasRole = async (role: string): Promise<boolean> => {
-  try {
-    const roles = await getUserRoles();
-    return roles.includes(role);
-  } catch (error) {
-    console.error('Failed to check role:', error);
-    return false;
-  }
+// Check if the current user has a specific role
+export const hasRole = (user: User | null, role: UserRole): boolean => {
+  return !!user?.roles.includes(role);
 };

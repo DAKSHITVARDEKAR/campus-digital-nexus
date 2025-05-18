@@ -11,10 +11,10 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
-import { CandidateApplicationType } from './CandidateApplicationForm';
+import { Candidate } from '@/models/election';
 
 type CandidateApplicationDetailProps = {
-  application: CandidateApplicationType | null;
+  application: Candidate;
   isOpen: boolean;
   onClose: () => void;
   onEdit?: (id: string) => void;
@@ -60,7 +60,7 @@ const CandidateApplicationDetail: React.FC<CandidateApplicationDetailProps> = ({
             </Badge>
           </DialogTitle>
           <DialogDescription>
-            Submitted on {format(application.submittedAt, 'MMMM d, yyyy')}
+            Submitted on {format(new Date(application.submittedAt), 'MMMM d, yyyy')}
           </DialogDescription>
         </DialogHeader>
 

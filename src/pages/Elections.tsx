@@ -9,14 +9,14 @@ import { Election } from '@/models/election';
 import { useAuth } from '@/contexts/AuthContext';
 import useElectionApi from '@/hooks/useElectionApi';
 import AccessibleElectionCard from '@/components/elections/AccessibleElectionCard';
-import { useAccessibilityContext } from '@/contexts/AccessibilityContext';
+import { AccessibilityContext } from '@/contexts/AccessibilityContext';
 import UserRoleSwitcher from '@/components/elections/UserRoleSwitcher';
 
 const Elections: React.FC = () => {
   const [elections, setElections] = useState<Election[]>([]);
   const { user, hasPermission } = useAuth();
   const { loading, error, getElections } = useElectionApi();
-  const { highContrast, largeText } = useAccessibilityContext();
+  const { highContrast, largeText } = React.useContext(AccessibilityContext);
 
   useEffect(() => {
     const fetchElections = async () => {
@@ -80,11 +80,11 @@ const Elections: React.FC = () => {
             {highContrast ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {elections.map(election => (
-                  <AccessibleElectionCard key={election.id} election={election} />
+                  <AccessibleElectionCard key={election.id} data={election} />
                 ))}
               </div>
             ) : (
-              <ElectionList elections={elections} />
+              <ElectionList elections={elections} loading={loading} error={error} />
             )}
           </div>
         ) : (

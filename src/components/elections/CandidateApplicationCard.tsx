@@ -5,10 +5,10 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Calendar, User, Edit, Trash2, CheckCircle, XCircle } from 'lucide-react';
 import { format } from 'date-fns';
-import { CandidateApplicationType } from './CandidateApplicationForm';
+import { Candidate } from '@/models/election';
 
 type CandidateApplicationCardProps = {
-  application: CandidateApplicationType;
+  application: Candidate;
   onView: (id: string) => void;
   onEdit?: (id: string) => void;
   onDelete?: (id: string) => void;
@@ -59,7 +59,7 @@ const CandidateApplicationCard: React.FC<CandidateApplicationCardProps> = ({
         </div>
         <div className="flex items-center gap-2 text-sm">
           <Calendar className="h-4 w-4 text-gray-500" />
-          <span>Submitted: {format(application.submittedAt, 'MMM d, yyyy')}</span>
+          <span>Submitted: {format(new Date(application.submittedAt), 'MMM d, yyyy')}</span>
         </div>
         <p className="text-sm leading-relaxed line-clamp-2">
           {application.manifesto}

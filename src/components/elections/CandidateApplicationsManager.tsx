@@ -12,6 +12,9 @@ import CandidateApplicationCard from './CandidateApplicationCard';
 import CandidateApplicationForm from './CandidateApplicationForm';
 import CandidateApplicationDetail from './CandidateApplicationDetail';
 
+// Ensure these types match the component property interfaces
+type CandidateApplicationType = Candidate;
+
 interface CandidateApplicationsManagerProps {
   electionId: string;
 }
@@ -206,11 +209,11 @@ const CandidateApplicationsManager: React.FC<CandidateApplicationsManagerProps> 
               {filteredCandidates.map((candidate) => (
                 <CandidateApplicationCard
                   key={candidate.id}
-                  candidate={candidate}
+                  application={candidate}
                   onView={() => handleViewDetails(candidate)}
-                  showApproveButtons={canApproveCandidates && candidate.status === 'pending'}
-                  onApprove={() => handleApproveCandidate(candidate)}
-                  onReject={() => handleRejectCandidate(candidate)}
+                  isAdmin={canApproveCandidates}
+                  onApprove={canApproveCandidates ? () => handleApproveCandidate(candidate) : undefined}
+                  onReject={canApproveCandidates ? () => handleRejectCandidate(candidate) : undefined}
                 />
               ))}
             </div>
@@ -233,11 +236,14 @@ const CandidateApplicationsManager: React.FC<CandidateApplicationsManagerProps> 
           
           {isDetailModalOpen && selectedCandidate && (
             <CandidateApplicationDetail
-              candidate={selectedCandidate}
+              application={selectedCandidate}
+              isOpen={isDetailModalOpen}
               onClose={handleCloseModal}
+              onEdit={undefined}
+              onDelete={undefined}
               onApprove={canApproveCandidates ? () => handleApproveCandidate(selectedCandidate) : undefined}
               onReject={canApproveCandidates ? () => handleRejectCandidate(selectedCandidate) : undefined}
-              showApproveButtons={canApproveCandidates && selectedCandidate.status === 'pending'}
+              isAdmin={canApproveCandidates}
             />
           )}
         </TabsContent>
