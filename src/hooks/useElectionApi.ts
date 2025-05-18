@@ -136,7 +136,7 @@ export const useElectionApi = () => {
   };
 
   const getCandidate = async (id: string) => {
-    return apiCall(() => mockElectionApi.getCandidates(id));
+    return apiCall(() => mockElectionApi.getCandidate(id));
   };
 
   const createCandidate = async (candidateData: Omit<Candidate, 'id' | 'voteCount' | 'status' | 'submittedAt'>) => {
@@ -151,7 +151,7 @@ export const useElectionApi = () => {
 
   const updateCandidate = async (id: string, candidateData: Partial<Omit<Candidate, 'id' | 'electionId' | 'studentId' | 'voteCount' | 'status' | 'submittedAt'>>) => {
     return apiCall(
-      () => mockElectionApi.createCandidate(candidateData), // Using createCandidate as a workaround
+      () => mockElectionApi.updateCandidate(id, candidateData),
       { 
         successMessage: 'Candidate application updated successfully',
         permissionCheck: { action: 'update', resource: 'candidate', resourceId: id }
@@ -161,7 +161,7 @@ export const useElectionApi = () => {
 
   const deleteCandidate = async (id: string) => {
     return apiCall(
-      () => mockElectionApi.getCandidates(id), // Using getCandidates as a workaround
+      () => mockElectionApi.deleteCandidate(id),
       { 
         successMessage: 'Candidate application deleted successfully',
         permissionCheck: { action: 'delete', resource: 'candidate', resourceId: id }
@@ -189,11 +189,10 @@ export const useElectionApi = () => {
     );
   };
 
-  // Votes API methods
-  // Fixed: Update the castVote method to match the mock API expectations
+  // Votes API methods - Fixed to match the actual function signatures
   const castVote = async (electionId: string, candidateId: string) => {
     return apiCall(
-      () => mockElectionApi.castVote(electionId, candidateId),
+      () => mockElectionApi.votes.castVote(electionId, candidateId),
       { 
         successMessage: 'Your vote has been recorded successfully',
         permissionCheck: { action: 'create', resource: 'vote' }
@@ -201,14 +200,14 @@ export const useElectionApi = () => {
     );
   };
 
-  // Fixed: Update hasVoted function to match expected parameters
+  // Fixed to match the actual function signature
   const hasVoted = async (electionId: string) => {
-    return apiCall(() => mockElectionApi.hasVoted(electionId));
+    return apiCall(() => mockElectionApi.votes.hasVoted(electionId));
   };
 
-  // Fixed: Implement getUserVote correctly
+  // Fixed to match the actual function signature
   const getUserVote = async (electionId: string) => {
-    return apiCall(() => mockElectionApi.hasVoted(electionId)); // Using hasVoted as a workaround
+    return apiCall(() => mockElectionApi.votes.getUserVote(electionId));
   };
 
   return {
