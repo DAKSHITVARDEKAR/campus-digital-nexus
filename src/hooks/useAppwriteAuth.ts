@@ -31,9 +31,9 @@ export const useAppwriteAuth = () => {
         
         if (session) {
           // Fetch user's team memberships to determine roles
-          const userTeams = await teams.listMemberships();
-          const roles = userTeams.memberships.map(membership => 
-            membership.teamId.replace('team:', '')
+          const userTeams = await teams.list();
+          const roles = userTeams.teams.map(team => 
+            team.$id.replace('team:', '')
           );
           
           setUser({
@@ -76,7 +76,7 @@ export const useAppwriteAuth = () => {
       try {
         await teams.createMembership(
           'students',  // Team ID for students
-          ID.unique(),
+          [],
           email,
           ['member']
         );
@@ -129,9 +129,9 @@ export const useAppwriteAuth = () => {
       const session = await account.get();
       
       // Fetch user's team memberships to determine roles
-      const userTeams = await teams.listMemberships();
-      const roles = userTeams.memberships.map(membership => 
-        membership.teamId.replace('team:', '')
+      const userTeams = await teams.list();
+      const roles = userTeams.teams.map(team => 
+        team.$id.replace('team:', '')
       );
       
       setUser({

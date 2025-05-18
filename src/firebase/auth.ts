@@ -48,7 +48,7 @@ export const loginWithEmailAndPassword = async (email: string, password: string)
           // Add to students team by default
           await appwriteTeams.createMembership(
             'students',
-            ID.unique(),
+            [],
             email,
             ['member']
           );
@@ -86,7 +86,7 @@ export const registerWithEmailAndPassword = async (email: string, password: stri
       // Add to students team by default
       await appwriteTeams.createMembership(
         'students',
-        ID.unique(),
+        [],
         email,
         ['member']
       );
@@ -137,9 +137,9 @@ export const getUserRoles = async (): Promise<string[]> => {
     if (!session) return [];
     
     // Get team memberships
-    const teamsData = await appwriteTeams.listMemberships();
-    return teamsData.memberships.map(membership => 
-      membership.teamId.replace('team:', '')
+    const teamsData = await appwriteTeams.list();
+    return teamsData.teams.map(team => 
+      team.$id.replace('team:', '')
     );
   } catch (error) {
     console.error('Failed to get user roles from Appwrite:', error);
