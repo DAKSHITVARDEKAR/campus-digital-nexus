@@ -135,10 +135,12 @@ export const useElectionApi = () => {
     return apiCall(() => mockElectionApi.getCandidates(electionId));
   };
 
-  // Fixing getCandidate to use getCandidates from mockElectionApi with filtering
+  // Fixed getCandidate to use getCandidates from mockElectionApi with filtering
   const getCandidate = async (id: string) => {
     return apiCall(async () => {
-      const allCandidates = await mockElectionApi.getCandidates(id.split('-')[0]);
+      // Extract election ID from candidate ID (assuming format: "election-id-candidate-id")
+      const electionId = id.split('-')[0];
+      const allCandidates = await mockElectionApi.getCandidates(electionId);
       return Array.isArray(allCandidates) ? 
         allCandidates.find(candidate => candidate.id === id) : 
         null;
@@ -158,6 +160,7 @@ export const useElectionApi = () => {
   // Fixed updateCandidate to match available methods in mockElectionApi
   const updateCandidate = async (id: string, candidateData: Partial<Omit<Candidate, 'id' | 'electionId' | 'studentId' | 'voteCount' | 'status' | 'submittedAt'>>) => {
     return apiCall(
+      // Fix: Properly pass id and candidateData to the method
       () => mockElectionApi.createCandidate({...candidateData, id} as any), // Using createCandidate as a workaround
       { 
         successMessage: 'Candidate application updated successfully',
@@ -204,6 +207,7 @@ export const useElectionApi = () => {
   // Votes API methods - fixed to match mockElectionApi's function signatures
   const castVote = async (electionId: string, candidateId: string) => {
     return apiCall(
+      // Fix: Only pass the required arguments to castVote
       () => mockElectionApi.castVote(electionId, candidateId),
       { 
         successMessage: 'Your vote has been recorded successfully',
@@ -214,11 +218,13 @@ export const useElectionApi = () => {
 
   // Fixed to match mockElectionApi's hasVoted function signature
   const hasVoted = async (electionId: string) => {
+    // Fix: Only pass the required single argument
     return apiCall(() => mockElectionApi.hasVoted(electionId));
   };
 
   // Fixed to match mockElectionApi's getUserVote function signature - this is a workaround since the function doesn't exist in mockElectionApi
   const getUserVote = async (electionId: string) => {
+    // Fix: Only pass the required single argument
     return apiCall(async () => {
       // Mock implementation since getUserVote doesn't exist directly
       const hasVotedResult = await mockElectionApi.hasVoted(electionId);
