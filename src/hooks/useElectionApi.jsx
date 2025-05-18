@@ -2,12 +2,11 @@
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import mockElectionApi from '../services/mockElectionApi';
-import { Election, Candidate } from '../models/election';
 import { useAuth } from '../contexts/AuthContext';
 
 // Custom error class
 class ApiError extends Error {
-  constructor(message: string) {
+  constructor(message) {
     super(message);
     this.name = "ApiError";
   }
@@ -15,26 +14,18 @@ class ApiError extends Error {
 
 // Enhanced hook for handling API calls with auth integration
 export const useElectionApi = () => {
-  const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const { toast } = useToast();
   const { user, hasPermission } = useAuth();
 
   // Generic API call wrapper to handle loading, errors, and success messages
-  const apiCall = async <T>(
-    fn: () => Promise<T>,
-    {
-      loadingMessage = 'Loading...',
-      successMessage,
-      errorMessage = 'An error occurred',
-      permissionCheck = { action: '', resource: '' }
-    }: {
-      loadingMessage?: string;
-      successMessage?: string;
-      errorMessage?: string;
-      permissionCheck?: { action: string; resource: string; resourceId?: string };
-    } = {}
-  ): Promise<T | null> => {
+  const apiCall = async (fn, {
+    loadingMessage = 'Loading...',
+    successMessage,
+    errorMessage = 'An error occurred',
+    permissionCheck = { action: '', resource: '' }
+  } = {}) => {
     // Check permissions if specified
     if (permissionCheck.action && permissionCheck.resource) {
       if (!hasPermission(permissionCheck.action, permissionCheck.resource, permissionCheck.resourceId)) {
@@ -79,7 +70,7 @@ export const useElectionApi = () => {
   };
 
   // Helper function to show error toast
-  const showErrorToast = (message: string) => {
+  const showErrorToast = (message) => {
     toast({
       title: "Error",
       description: message,
@@ -92,11 +83,11 @@ export const useElectionApi = () => {
     return apiCall(() => mockElectionApi.getElections());
   };
 
-  const getElection = async (id: string) => {
+  const getElection = async (id) => {
     return apiCall(() => mockElectionApi.getElection(id));
   };
 
-  const createElection = async (electionData: Omit<Election, 'id' | 'createdBy' | 'createdAt' | 'updatedAt'>) => {
+  const createElection = async (electionData) => {
     return apiCall(
       () => mockElectionApi.createElection(electionData),
       { 
@@ -106,7 +97,7 @@ export const useElectionApi = () => {
     );
   };
 
-  const updateElection = async (id: string, electionData: Partial<Omit<Election, 'id' | 'createdBy' | 'createdAt'>>) => {
+  const updateElection = async (id, electionData) => {
     return apiCall(
       () => mockElectionApi.updateElection(id, electionData),
       { 
@@ -116,7 +107,7 @@ export const useElectionApi = () => {
     );
   };
 
-  const deleteElection = async (id: string) => {
+  const deleteElection = async (id) => {
     return apiCall(
       () => mockElectionApi.deleteElection(id),
       { 
@@ -126,23 +117,22 @@ export const useElectionApi = () => {
     );
   };
 
-  const getElectionResults = async (id: string) => {
+  const getElectionResults = async (id) => {
     return apiCall(() => mockElectionApi.getElectionResults(id));
   };
 
   // Candidates API methods
-  const getCandidates = async (electionId: string) => {
+  const getCandidates = async (electionId) => {
     return apiCall(() => mockElectionApi.getCandidates(electionId));
   };
 
-  const getCandidate = async (id: string) => {
+  const getCandidate = async (id) => {
     return apiCall(async () => {
       // Extract election ID from candidate ID (assuming format: "election-id-candidate-id")
       const parts = id.split('-');
       const electionId = parts[0];
       const allCandidates = await mockElectionApi.getCandidates(electionId);
       // Make sure we handle the response correctly by accessing the candidates array
-      // if it returns an object with a candidates property
       const candidatesArray = Array.isArray(allCandidates) 
         ? allCandidates 
         : allCandidates?.candidates || [];
@@ -150,7 +140,7 @@ export const useElectionApi = () => {
     });
   };
 
-  const createCandidate = async (candidateData: Omit<Candidate, 'id' | 'voteCount' | 'status' | 'submittedAt'>) => {
+  const createCandidate = async (candidateData) => {
     return apiCall(
       () => mockElectionApi.createCandidate(candidateData),
       { 
@@ -160,8 +150,7 @@ export const useElectionApi = () => {
     );
   };
 
-  // Fix: Access the updateCandidate method directly from the mockElectionApi object
-  const updateCandidate = async (id: string, candidateData: Partial<Omit<Candidate, 'id' | 'electionId' | 'studentId' | 'voteCount' | 'status' | 'submittedAt'>>) => {
+  const updateCandidate = async (id, candidateData) => {
     return apiCall(
       () => {
         // Check if the method exists on the mockElectionApi
@@ -177,8 +166,7 @@ export const useElectionApi = () => {
     );
   };
 
-  // Fix: Access the deleteCandidate method directly from the mockElectionApi object
-  const deleteCandidate = async (id: string) => {
+  const deleteCandidate = async (id) => {
     return apiCall(
       () => {
         // Check if the method exists on the mockElectionApi
@@ -194,7 +182,7 @@ export const useElectionApi = () => {
     );
   };
 
-  const approveCandidate = async (id: string) => {
+  const approveCandidate = async (id) => {
     return apiCall(
       () => mockElectionApi.approveCandidate(id),
       { 
@@ -204,7 +192,7 @@ export const useElectionApi = () => {
     );
   };
 
-  const rejectCandidate = async (id: string) => {
+  const rejectCandidate = async (id) => {
     return apiCall(
       () => mockElectionApi.rejectCandidate(id),
       { 
@@ -215,16 +203,16 @@ export const useElectionApi = () => {
   };
 
   // Votes API methods
-  // Fix: castVote expected only electionId in mockElectionApi
-  const castVote = async (electionId: string, candidateId: string) => {
+  const castVote = async (electionId, candidateId) => {
     return apiCall(
       () => {
-        // Check if castVote accepts two arguments
-        if (mockElectionApi.castVote.length === 2) {
+        // Check if castVote accepts two arguments or has proper implementation
+        try {
           return mockElectionApi.castVote(electionId, candidateId);
+        } catch (error) {
+          // Fallback to single argument if that fails
+          return mockElectionApi.castVote(electionId);
         }
-        // Fallback - assuming the first argument is the only one needed
-        return mockElectionApi.castVote(electionId);
       },
       { 
         successMessage: 'Your vote has been recorded successfully',
@@ -233,13 +221,11 @@ export const useElectionApi = () => {
     );
   };
 
-  // Fix: hasVoted expects only electionId
-  const hasVoted = async (electionId: string) => {
+  const hasVoted = async (electionId) => {
     return apiCall(() => mockElectionApi.hasVoted(electionId));
   };
 
-  // Implement getUserVote fallback since it might not exist in mockElectionApi
-  const getUserVote = async (electionId: string) => {
+  const getUserVote = async (electionId) => {
     return apiCall(async () => {
       // Check if getUserVote exists in mockElectionApi
       if (typeof mockElectionApi.getUserVote === 'function') {
